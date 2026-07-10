@@ -69,11 +69,12 @@ export async function scanToken(tokenAddress: Address): Promise<ScanResult> {
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     if (result.status === "fulfilled") {
-      moduleResults.push(result.value);
+      moduleResults.push({ ...result.value, category: modules[i].category });
     } else {
       timedOut++;
       moduleResults.push({
         module: modules[i].name,
+        category: modules[i].category,
         status: "timeout",
         score: 0,
         weight: modules[i].weight,

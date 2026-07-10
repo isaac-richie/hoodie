@@ -11,8 +11,11 @@ export interface ApiErrorBody {
   };
 }
 
+export type ModuleCategory = "security" | "holders" | "launch" | "liquidity" | "creator" | "social" | "meta";
+
 export interface ModuleResult {
   module: string;
+  category?: ModuleCategory;
   status: ModuleStatus;
   score: number;
   weight: number;

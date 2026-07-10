@@ -19,6 +19,7 @@ export type ModuleStatus = "pass" | "warn" | "fail" | "timeout" | "error";
 
 export interface ModuleResult {
   module: string;
+  category?: "security" | "holders" | "launch" | "liquidity" | "creator" | "social" | "meta";
   status: ModuleStatus;
   score: number; // contribution to total score (0-100 weighted)
   weight: number;

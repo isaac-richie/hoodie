@@ -11,22 +11,14 @@ import { scoreToBand } from "@/types";
 
 const MODULE_TABS = ["All", "Security", "Holders", "Launch", "Liquidity", "Creator", "Meta"] as const;
 
-const MODULE_CATEGORY: Record<string, (typeof MODULE_TABS)[number]> = {
-  honeypot: "Security",
-  "hidden-mint": "Security",
-  "mutable-tax": "Security",
-  blacklist: "Security",
-  "trading-pause": "Security",
-  ownership: "Security",
-  "proxy-check": "Security",
-  "scam-template": "Security",
-  "holder-dist": "Holders",
-  "fresh-wallets": "Holders",
-  "bundle-detect": "Launch",
-  "sniper-detect": "Launch",
-  "lp-lock": "Liquidity",
-  "deployer-rep": "Creator",
-  registry: "Meta",
+const CATEGORY_TAB: Record<string, (typeof MODULE_TABS)[number]> = {
+  security: "Security",
+  holders: "Holders",
+  launch: "Launch",
+  liquidity: "Liquidity",
+  creator: "Creator",
+  social: "Meta",
+  meta: "Meta",
 };
 
 const STATUS_COLOR: Record<ModuleStatus, string> = {
@@ -45,8 +37,8 @@ function formatBand(band: ScanResult["band"]) {
   return band.replace("_", " ");
 }
 
-function moduleCategory(moduleName: string) {
-  return MODULE_CATEGORY[moduleName] || "Meta";
+function moduleCategory(module: ModuleResult) {
+  return CATEGORY_TAB[module.category ?? "meta"] || "Meta";
 }
 
 function sortModules(a: ModuleResult, b: ModuleResult) {
@@ -170,7 +162,7 @@ function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: ()
     const filtered =
       activeTab === "All"
         ? result.moduleResults
-        : result.moduleResults.filter((module) => moduleCategory(module.module) === activeTab);
+        : result.moduleResults.filter((module) => moduleCategory(module) === activeTab);
 
     return [...filtered].sort(sortModules);
   }, [activeTab, result.moduleResults]);
