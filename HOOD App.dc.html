@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A1F12;color:#E6FBEA;font-family:'JetBrains Mono',ui-monospace,monospace;-webkit-font-smoothing:antialiased}
+a{color:#00C805;text-decoration:none}a:hover{color:#E6FBEA}
+::selection{background:#00C805;color:#0A1F12}
+input,button,select{font-family:'JetBrains Mono',ui-monospace,monospace}
+input[type=range]{accent-color:#00C805}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes sweep{0%{top:-3px}100%{top:100%}}
+@keyframes rainfall{0%{transform:translateY(-50%)}100%{transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){.scan-sweep{animation:none !important;top:34% !important}.bin-rain{display:none !important}}
+</style>
+</helmet>
+
+<div style="display:flex;min-height:100vh;background:#0A1F12;align-items:stretch">
+
+  <nav style="width:204px;flex:none;background:#06140B;border-right:1px solid #164A2A;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto">
+    <div style="padding:16px 18px;border-bottom:1px solid #164A2A;display:flex;align-items:baseline;gap:7px">
+      <span style="font-family:'UnifrakturCook',serif;font-size:21px;color:#E6FBEA">Hood</span>
+      <span style="font-size:11px;font-weight:700;letter-spacing:.13em;color:#00C805">TERMINAL</span>
+    </div>
+    <div style="padding:14px 10px 8px;display:flex;flex-direction:column;gap:1px">
+      <div style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#496552;padding:4px 10px 6px">watch</div>
+      <sc-for list="{{ navWatch }}" as="n" hint-placeholder-count="5"><a href="#" onClick="{{ n.go }}" style="{{ n.style }}"><span style="display:flex;flex-direction:column;min-width:0"><span style="line-height:15px">{{ n.label }}</span><span style="font-size:9px;color:#496552;line-height:11px">{{ n.sub }}</span></span><span style="font-size:10px;color:#496552">{{ n.key }}</span></a></sc-for>
+      <div style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#496552;padding:14px 10px 6px">intel</div>
+      <sc-for list="{{ navIntel }}" as="n" hint-placeholder-count="3"><a href="#" onClick="{{ n.go }}" style="{{ n.style }}"><span style="display:flex;flex-direction:column;min-width:0"><span style="line-height:15px">{{ n.label }}</span><span style="font-size:9px;color:#496552;line-height:11px">{{ n.sub }}</span></span><span style="font-size:10px;color:#496552">{{ n.key }}</span></a></sc-for>
+      <div style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#496552;padding:14px 10px 6px">crew</div>
+      <sc-for list="{{ navCrew }}" as="n" hint-placeholder-count="1"><a href="#" onClick="{{ n.go }}" style="{{ n.style }}"><span style="display:flex;flex-direction:column;min-width:0"><span style="line-height:15px">{{ n.label }}</span><span style="font-size:9px;color:#496552;line-height:11px">{{ n.sub }}</span></span><span style="font-size:10px;color:#496552">{{ n.key }}</span></a></sc-for>
+    </div>
+    <div style="margin-top:auto;padding:10px;border-top:1px solid #164A2A;display:flex;flex-direction:column;gap:1px">
+      <sc-for list="{{ navSys }}" as="n" hint-placeholder-count="3"><a href="#" onClick="{{ n.go }}" style="{{ n.style }}">{{ n.label }}</a></sc-for>
+      <div style="padding:10px;font-size:10px;color:#496552;line-height:16px">signed in as robin.eth<br><span style="color:{{ planColor }}">{{ planLabel }}</span></div>
+    </div>
+  </nav>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <div style="position:sticky;top:0;z-index:40;background:#0A1F12;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:14px;padding:0 20px;height:52px">
+      <span style="color:#D4A937;font-size:16px;font-weight:700">❯</span>
+      <div style="flex:1;position:relative;display:flex;align-items:center;min-width:0">
+        <div style="position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;font-size:13px;pointer-events:none;white-space:pre;overflow:hidden"><span style="color:transparent">{{ cmd }}</span><span style="color:#496552">{{ ghost }}</span></div>
+        <input value="{{ cmd }}" onChange="{{ setCmd }}" onKeyDown="{{ onCmdKey }}" placeholder="scan 0x… · watch · heist · pulse · help. tab completes, up recalls." style="width:100%;background:transparent;border:none;outline:none;color:#E6FBEA;font-size:13px;padding:8px 0">
+      </div>
+      <span style="display:inline-block;width:8px;height:15px;background:#00C805;animation:blink 1.1s steps(1) infinite"></span>
+      <button onClick="{{ openFriar }}" style="background:transparent;border:1px solid #164A2A;color:#D4A937;font-size:11px;padding:7px 12px;border-radius:3px;cursor:pointer" style-hover="border-color:#D4A937">✒ Friar Tuck <span style="color:#496552">· Assistant</span></button>
+      <span style="font-size:10px;font-weight:700;padding:5px 10px;border-radius:3px;border:1px solid {{ planColor }};color:{{ planColor }}">{{ planLabel }}</span>
+    </div>
+    <main style="flex:1;padding:14px 14px 56px;min-width:0">
+      <sc-if value="{{ sHideout }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="The Hideout">
+  <div style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">The Hideout</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Home</span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Your home base. Live risk on your marks, alerts that fired, and a scan line ready when you are.</div>
+  </div>
+  <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:22px;margin-bottom:16px;position:relative;overflow:hidden">
+    <svg width="500" height="400" viewBox="0 0 500 400" style="position:absolute;right:-120px;top:-120px;opacity:.5;pointer-events:none"><ellipse cx="250" cy="200" rx="70" ry="54" fill="none" stroke="#164A2A" stroke-width="1"></ellipse><ellipse cx="250" cy="200" rx="130" ry="102" fill="none" stroke="#164A2A" stroke-width="1"></ellipse><ellipse cx="250" cy="200" rx="190" ry="150" fill="none" stroke="#164A2A" stroke-width="1"></ellipse></svg>
+    <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;margin-bottom:10px;position:relative">run a scan</div>
+    <div style="display:flex;gap:12px;position:relative">
+      <div style="flex:1;display:flex;align-items:center;gap:10px;background:#0A1F12;border:1px solid #164A2A;border-radius:3px;padding:0 14px">
+        <span style="color:#D4A937;font-weight:700">❯</span>
+        <input value="{{ cmd }}" onChange="{{ setCmd }}" onKeyDown="{{ onCmdKey }}" placeholder="paste a token or wallet address" style="flex:1;background:transparent;border:none;outline:none;color:#E6FBEA;font-size:14px;padding:13px 0">
+      </div>
+      <button onClick="{{ runCmd }}" style="background:#D4A937;color:#0A1F12;border:none;border-radius:3px;font-size:13px;font-weight:700;padding:0 22px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Scan ⏎</button>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:1px;align-items:stretch">
+    <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+        <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:700">The Quiver · your marks</span><a href="#" onClick="{{ goQuiverFn }}" style="font-size:11px;color:#7FA68A">open the Quiver ❯</a></div>
+        <div style="display:grid;grid-template-columns:1fr .9fr 1.1fr 1.2fr 2fr;gap:10px;padding:8px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>mark</span><span>price</span><span>7d · 24h</span><span>risk</span><span>what changed</span></div>
+        <sc-for list="{{ quiverGlance }}" as="q" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:1fr .9fr 1.1fr 1.2fr 2fr;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid #164A2A;font-size:12px" style-hover="background:#0A1F12">
+            <a href="#" onClick="{{ goScan }}" onMouseEnter="{{ q.pv }}" onMouseLeave="{{ pvOff }}" style="font-weight:700;color:#E6FBEA">{{ q.t }}</a>
+            <span style="color:#7FA68A">{{ q.px }}</span>
+            <span style="display:flex;align-items:center;gap:7px"><svg width="50" height="15" viewBox="0 0 68 18" preserveAspectRatio="none" style="flex:none"><polyline points="{{ q.spark }}" fill="none" stroke="{{ q.sparkCol }}" stroke-width="1.5"></polyline></svg><span style="color:{{ q.cc }}">{{ q.chg }}</span></span>
+            <span><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ q.bg }};color:{{ q.fg }};white-space:nowrap">{{ q.sc }} {{ q.band }}</span></span>
+            <span style="color:#496552;font-size:11px">{{ q.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:14px 16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Spoils <span style="font-size:10px;color:#496552;font-weight:400">· Profit and Loss</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:20px;align-items:start">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div><div style="font-size:26px;font-weight:700;color:#00C805">+$1,990</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">realized, 30d</div></div>
+            <div style="display:flex;gap:22px">
+              <div><div style="font-size:16px;font-weight:600">$12,410</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">bags at risk</div></div>
+              <div><div style="font-size:16px;font-weight:600;color:#FFB020">1 mark</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">above high risk</div></div>
+            </div>
+          </div>
+          <div>
+            <svg width="100%" height="64" viewBox="0 0 200 30" preserveAspectRatio="none" style="display:block"><line x1="0" x2="200" y1="18" y2="18" stroke="#164A2A" stroke-width="1" stroke-dasharray="2,3"></line><polyline points="{{ spoilsLine }}" fill="none" stroke="#00C805" stroke-width="1.2"></polyline></svg>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:#496552;margin-top:4px"><span>30d ago</span><span>today</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden;display:flex;flex-direction:column">
+      <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:13px;font-weight:700">Alerts that fired</div>
+      <sc-for list="{{ arrowsStruck }}" as="a" hint-placeholder-count="3">
+        <div style="background:#06140B;padding:9px 14px;border-bottom:1px solid #164A2A;font-size:12px">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><span style="color:{{ a.c }}">➶</span><a href="#" onClick="{{ goScan }}" style="font-weight:700;color:#E6FBEA">{{ a.t }}</a><span style="margin-left:auto;color:#496552;font-size:10px">{{ a.time }}</span></div>
+          <div style="color:#7FA68A;line-height:17px">{{ a.msg }}</div>
+        </div>
+      </sc-for>
+      <div style="padding:12px 16px;margin-top:auto"><button onClick="{{ looseArrow }}" style="width:100%;background:transparent;border:1px solid #164A2A;color:#00C805;font-size:12px;padding:9px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">＋ Set alert</button></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sScan }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Scan verdict">
+  <sc-if value="{{ scanning }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#06140B;border:1px solid #164A2A;min-height:440px;padding:16px 18px;font-size:12px;line-height:22px;position:relative;overflow:hidden;z-index:0">
+      <div class="bin-rain" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1">
+        <sc-for list="{{ rainCols }}" as="rc" hint-placeholder-count="8">
+          <div style="position:absolute;left:{{ rc.x }};top:0;font-size:11px;line-height:18px;color:#2B7A3D;opacity:{{ rc.op }};white-space:pre;animation:rainfall {{ rc.dur }} linear {{ rc.del }} infinite">{{ rc.txt }}</div>
+        </sc-for>
+      </div>
+      <div class="scan-sweep" style="position:absolute;left:0;right:0;top:-3px;height:2px;background:#00C805;opacity:.2;animation:sweep 2.4s linear infinite;pointer-events:none"></div>
+      <div style="color:#7FA68A;margin-bottom:10px"><span style="color:#D4A937;font-weight:700">❯</span> scan 0x8f3c…a2e1</div>
+      <sc-for list="{{ scanLog }}" as="l" hint-placeholder-count="3">
+        <div style="display:flex;gap:14px"><span style="color:#496552;width:44px;flex:none;text-align:right">{{ l.t }}</span><span style="color:#7FA68A;width:128px;flex:none">{{ l.m }}</span><span style="color:{{ l.c }};width:58px;flex:none">{{ l.tag }}</span><span style="color:#E6FBEA;min-width:0">{{ l.msg }}</span></div>
+      </sc-for>
+      <div style="margin-top:8px;padding-left:58px"><span style="display:inline-block;width:8px;height:14px;background:#00C805;animation:blink .8s steps(1) infinite"></span></div>
+    </div>
+  </sc-if>
+  <sc-if value="{{ notScanning }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;align-items:center;gap:12px;background:#06140B;border:1px solid #164A2A;padding:6px 14px;margin-bottom:1px;font-size:11px"><span style="color:#496552">┌ scan.log</span><span style="color:#7FA68A">31 modules · 1.4s · 2 timed out</span><button onClick="{{ replay }}" style="margin-left:auto;background:transparent;border:1px solid #164A2A;color:#00C805;font-size:11px;padding:4px 10px;cursor:pointer" style-hover="border-color:#00C805">❯ run again</button></div>
+  <div style="background:#3a2a08;border:1px solid #FFB020;border-radius:0;padding:9px 14px;margin-bottom:1px;font-size:12px;color:#FFB020;display:flex;gap:10px;align-items:center"><span>!</span><span>Partial analysis. Two modules timed out: cross funding, KOL holders. The score may shift when they report. <a href="#" style="color:#FFB020;text-decoration:underline">Re run scan</a></span></div>
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+    <span style="font-size:24px;font-weight:700">$NIGHTJAR</span>
+    <span style="font-size:12px;color:#7FA68A">Nightjar · 0x8f3c…a2e1 · archery.fun launch · deployer <a href="#" onClick="{{ goDeployerFn }}" style="color:#FF3B30">0x3d71…f09c · 18% survival · serial rug</a></span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button onClick="{{ looseArrow }}" style="background:transparent;border:1px solid #164A2A;color:#E6FBEA;font-size:11px;padding:8px 12px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">＋ Set alert</button>
+      <button onClick="{{ addQuiver }}" style="background:transparent;border:1px solid #164A2A;color:#E6FBEA;font-size:11px;padding:8px 12px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">+ Quiver</button>
+      <button onClick="{{ goScan }}" style="background:transparent;border:1px solid #164A2A;color:#E6FBEA;font-size:11px;padding:8px 12px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">Compare</button>
+      <button onClick="{{ shareScan }}" style="background:transparent;border:1px solid #164A2A;color:#E6FBEA;font-size:11px;padding:8px 12px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">Share</button>
+      <button onClick="{{ openSwap }}" style="background:#D4A937;border:none;color:#0A1F12;font-size:11px;font-weight:700;padding:8px 16px;border-radius:3px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Swap</button>
+    </div>
+  </div>
+  <div style="font-size:12px;color:#7FA68A;margin:-8px 0 14px;line-height:18px">The full workup on one token. One verdict up top, every piece of evidence below. <span style="color:#D4A937">❯</span><span style="color:#496552"> scan 0x8f3c…a2e1</span></div>
+  <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;margin-bottom:1px">
+    <div style="padding:8px 14px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:12px;font-size:11px;flex-wrap:wrap">
+      <span style="color:#496552">┌ $NIGHTJAR / SOL · price</span>
+      <span style="color:#7FA68A">C <span style="color:#E6FBEA">{{ lastPrice }}</span></span>
+      <span style="color:#496552">embedded chart widget · dark theme</span>
+      <div style="margin-left:auto;display:flex;gap:2px">
+        <sc-for list="{{ tfBtns }}" as="t" hint-placeholder-count="6"><button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+      </div>
+    </div>
+    <div style="position:relative;padding:4px 6px 0">
+      <svg width="100%" height="252" viewBox="0 0 760 252" preserveAspectRatio="none" style="display:block">
+        <sc-for list="{{ chartGrid }}" as="g" hint-placeholder-count="4"><line x1="10" x2="700" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#12331E" stroke-width="1"></line></sc-for>
+        <sc-for list="{{ candles }}" as="c" hint-placeholder-count="40">
+          <line x1="{{ c.x }}" x2="{{ c.x }}" y1="{{ c.wt }}" y2="{{ c.wb }}" stroke="{{ c.col }}" stroke-width="1"></line>
+          <rect x="{{ c.bx }}" y="{{ c.by }}" width="7" height="{{ c.bh }}" fill="{{ c.col }}"></rect>
+          <rect x="{{ c.bx }}" y="{{ c.vy }}" width="7" height="{{ c.vh }}" fill="{{ c.col }}" opacity="0.3"></rect>
+        </sc-for>
+        <line x1="10" x2="700" y1="{{ lastY }}" y2="{{ lastY }}" stroke="#00C805" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"></line>
+      </svg>
+      <sc-for list="{{ chartGrid }}" as="g" hint-placeholder-count="4"><span style="position:absolute;right:10px;top:{{ g.t }}px;font-size:9px;color:#496552">{{ g.p }}</span></sc-for>
+      <span style="position:absolute;right:8px;top:{{ lastT }}px;font-size:9px;font-weight:700;color:#0A1F12;background:#00C805;padding:0 4px;border-radius:2px">{{ lastPrice }}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:2px 14px 8px;font-size:9px;color:#496552"><span>jul 06</span><span>jul 07</span><span>jul 08</span><span>today</span></div>
+    <div style="padding:7px 14px;border-top:1px solid #164A2A;font-size:10px;color:#496552;display:flex;justify-content:space-between;gap:12px"><span>volume shaded below · price scale right</span><span>Not financial advice. DYOR.</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:340px 1fr;gap:1px;margin-bottom:1px">
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:20px;display:flex;gap:18px;align-items:center">
+      <div style="text-align:center;min-width:92px">
+        <div style="font-size:52px;font-weight:700;color:#FF3B30;line-height:1">74</div>
+        <div style="height:4px;background:#164A2A;border-radius:2px;margin:10px 0 4px;overflow:hidden"><div style="width:74%;height:4px;background:#FF3B30"></div></div>
+        <div style="font-size:9px;color:#7FA68A">rug score / 100</div>
+      </div>
+      <div>
+        <div style="display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:3px;background:#FF3B30;color:#0A1F12;margin-bottom:8px">High risk</div>
+        <div style="font-size:12px;line-height:18px;color:#E6FBEA">Deployer has two confirmed rugs. Bundles hold 18 percent from one funder.</div>
+        <div style="font-size:10px;color:#496552;margin-top:6px">confidence: medium · 29/31 modules</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:#164A2A;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:17px;font-weight:600">$184k</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">liquidity</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:17px;font-weight:600">1,208</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">holders</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:17px;font-weight:600;color:#FFB020">41%</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">top 10</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:17px;font-weight:600;color:#00C805">locked 30d</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">LP status</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:17px;font-weight:600">$2.1M</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">market cap</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:17px;font-weight:600">3d 4h</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">age</div></div>
+    </div>
+  </div>
+  <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:10px 16px;margin-bottom:1px;display:flex;align-items:center;gap:12px;font-size:12px">
+    <span style="color:#D4A937">✒</span><span style="color:#7FA68A">Twenty nine modules is a lot of parchment.</span>
+    <button onClick="{{ openFriar }}" style="background:transparent;border:none;color:#D4A937;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Ask Friar Tuck to read the trail</button>
+  </div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+    <div style="display:flex;border-bottom:1px solid #164A2A;overflow-x:auto">
+      <sc-for list="{{ scanTabs }}" as="tb" hint-placeholder-count="8"><button onClick="{{ tb.go }}" style="{{ tb.style }}">{{ tb.label }}</button></sc-for>
+    </div>
+    <sc-if value="{{ tSec }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:6px 20px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">honeypot simulation</span><span style="color:#00C805">✓ sell executed · 9.8% total tax · gas normal</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">hidden mint</span><span style="color:#FF3B30">✕ mint function reachable by owner</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">mutable taxes</span><span style="color:#FF3B30">✕ setTax callable · current 4/6, cap none</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">blacklist</span><span style="color:#00C805">✓ none found</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">trading pause</span><span style="color:#00C805">✓ none found</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">upgradeable proxy</span><span style="color:#FF3B30">✕ proxy live · <span style="border:1px solid #FFB020;color:#FFB020;font-size:10px;padding:2px 7px;border-radius:3px">upgrade alert armed</span></span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">ownership</span><span style="color:#FFB020">! not renounced · owner is deployer</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:13px"><span style="color:#7FA68A">scam template match</span><span style="color:#FFB020">! 61% similar to template T 114</span></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tHold }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px;display:grid;grid-template-columns:1fr 1.2fr;gap:20px">
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">distribution</div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>top 1</span><span style="color:#E6FBEA">14%</span></div>
+          <div style="height:8px;background:#06140B;border:1px solid #164A2A;margin-bottom:12px"><div style="width:14%;height:8px;background:#FF3B30"></div></div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>top 10</span><span style="color:#E6FBEA">41%</span></div>
+          <div style="height:8px;background:#06140B;border:1px solid #164A2A;margin-bottom:12px"><div style="width:41%;height:8px;background:#FFB020"></div></div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>top 10, sybil adjusted</span><span style="color:#FF3B30">57%</span></div>
+          <div style="height:8px;background:#06140B;border:1px solid #164A2A;margin-bottom:12px"><div style="width:57%;height:8px;background:#FF3B30"></div></div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>fresh wallets, under 7d</span><span style="color:#FFB020">34%</span></div>
+          <div style="height:8px;background:#06140B;border:1px solid #164A2A"><div style="width:34%;height:8px;background:#FFB020"></div></div>
+          <div style="font-size:11px;color:#496552;margin-top:16px;line-height:17px">Sybil adjustment merges wallets that share a funder. Sixteen coats, nine bodies.</div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">sheriff watch · whale bubble map</div>
+          <div style="position:relative;height:240px;background:#06140B;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+            <sc-for list="{{ bubbles }}" as="b" hint-placeholder-count="8">
+              <div style="position:absolute;left:{{ b.x }}%;top:{{ b.y }}%;width:{{ b.r }}px;height:{{ b.r }}px;border-radius:50%;border:1px solid {{ b.c }};display:flex;align-items:center;justify-content:center;font-size:8px;color:{{ b.c }}">{{ b.l }}</div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:14px;font-size:10px;color:#7FA68A;margin-top:8px"><span><span style="color:#FF3B30">●</span> flagged</span><span><span style="color:#FFB020">●</span> watch</span><span><span style="color:#00C805">●</span> organic</span><span><span style="color:#2B7A3D">●</span> dust</span></div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ insLocked }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:60px 20px;text-align:center;position:relative;overflow:hidden">
+        <svg width="600" height="400" viewBox="0 0 600 400" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);opacity:.5;pointer-events:none"><ellipse cx="300" cy="200" rx="80" ry="56" fill="none" stroke="#164A2A" stroke-width="1"></ellipse><ellipse cx="300" cy="200" rx="150" ry="106" fill="none" stroke="#164A2A" stroke-width="1"></ellipse><ellipse cx="300" cy="200" rx="220" ry="158" fill="none" stroke="#164A2A" stroke-width="1"></ellipse></svg>
+        <div style="position:relative"><div style="font-size:22px;color:#D4A937;margin-bottom:10px">◆</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">Legend tools sit behind the vault door.</div>
+        <div style="font-size:12px;color:#7FA68A;margin-bottom:20px;line-height:19px">Insider network graph, cross funding, sybil bands,<br>Time Travel replay, and Magic Nodes.</div>
+        <button onClick="{{ goAccount }}" style="background:#D4A937;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:10px 18px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Open the vault</button></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ insOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px;display:grid;grid-template-columns:1.3fr 1fr;gap:20px">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <span style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A">insider network graph</span>
+            <button onClick="{{ toggleMagic }}" style="margin-left:auto;background:transparent;border:1px solid #D4A937;color:#D4A937;font-size:10px;padding:5px 10px;border-radius:3px;cursor:pointer">◆ {{ magicLabel }}</button>
+          </div>
+          <div style="position:relative;height:250px;background:#06140B;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+            <div style="position:absolute;left:24%;top:38%;width:120px;height:1px;background:#2B7A3D;transform:rotate(24deg);transform-origin:left"></div>
+            <div style="position:absolute;left:24%;top:38%;width:150px;height:1px;background:#2B7A3D;transform:rotate(-18deg);transform-origin:left"></div>
+            <div style="position:absolute;left:50%;top:62%;width:110px;height:1px;background:#2B7A3D;transform:rotate(-40deg);transform-origin:left"></div>
+            <div style="position:absolute;left:50%;top:24%;width:130px;height:1px;background:#2B7A3D;transform:rotate(30deg);transform-origin:left"></div>
+            <div style="position:absolute;left:20%;top:32%;width:44px;height:44px;border-radius:50%;border:2px solid #FF3B30;display:flex;align-items:center;justify-content:center;font-size:8px;color:#FF3B30;background:#0A1F12">deployer</div>
+            <div style="position:absolute;left:48%;top:18%;width:34px;height:34px;border-radius:50%;border:1px solid #FFB020;display:flex;align-items:center;justify-content:center;font-size:8px;color:#FFB020;background:#0A1F12">0x91be</div>
+            <div style="position:absolute;left:52%;top:56%;width:34px;height:34px;border-radius:50%;border:1px solid #FFB020;display:flex;align-items:center;justify-content:center;font-size:8px;color:#FFB020;background:#0A1F12">0x30cc</div>
+            <div style="position:absolute;left:74%;top:34%;width:28px;height:28px;border-radius:50%;border:1px solid #2B7A3D;display:flex;align-items:center;justify-content:center;font-size:8px;color:#7FA68A;background:#0A1F12">…</div>
+            <sc-if value="{{ magic }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:70%;top:64%;width:38px;height:38px;border-radius:50%;border:2px solid #D4A937;display:flex;align-items:center;justify-content:center;font-size:8px;color:#D4A937;background:#0A1F12">hidden</div>
+              <div style="position:absolute;left:56%;top:66%;width:100px;height:1px;background:#8A6D1F;transform:rotate(8deg);transform-origin:left"></div>
+              <div style="position:absolute;left:12px;bottom:10px;font-size:10px;color:#D4A937">◆ magic nodes revealed 1 hidden link: shared gas funder, 2 hops</div>
+            </sc-if>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">time travel · holder replay</div>
+          <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:16px">
+            <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#7FA68A;margin-bottom:8px"><span>{{ ttLabel }}</span><span style="margin-left:auto;color:#E6FBEA">top10 now: {{ ttTop }} sybil adj</span><button onClick="{{ replayTT }}" style="background:transparent;border:1px solid #164A2A;color:#00C805;font-size:10px;padding:3px 8px;border-radius:2px;cursor:pointer" style-hover="border-color:#00C805">▶ replay</button></div>
+            <input type="range" min="0" max="100" value="{{ tt }}" onChange="{{ setTt }}" style="width:100%">
+            <div style="display:flex;align-items:flex-end;gap:2px;height:60px;margin-top:12px">
+              <sc-for list="{{ ttBars }}" as="tb" hint-placeholder-count="7"><div style="width:14px;height:{{ tb.h }}px;background:{{ tb.c }};transition:height .2s"></div></sc-for>
+            </div>
+            <div style="font-size:10px;color:#496552;margin-top:8px">concentration has climbed every day since launch</div>
+          </div>
+          <div style="margin-top:14px;background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:12px;line-height:19px"><span style="color:#7FA68A">sybil bands:</span> 3 bands found. largest merges 16 wallets into one owner holding <span style="color:#FF3B30">11.2%</span>.</div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tLaunch }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px">
+        <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:14px">launchpad lifecycle · archery.fun</div>
+        <div style="display:flex;align-items:center;gap:0;margin-bottom:24px;font-size:11px">
+          <div style="flex:1;border-top:2px solid #00C805;padding-top:8px;color:#E6FBEA">deployed<div style="color:#496552;font-size:10px">jul 06, 09:14</div></div>
+          <div style="flex:1;border-top:2px solid #00C805;padding-top:8px;color:#E6FBEA">curve filled 50%<div style="color:#496552;font-size:10px">jul 06, 11:02</div></div>
+          <div style="flex:1;border-top:2px solid #00C805;padding-top:8px;color:#E6FBEA">graduated<div style="color:#496552;font-size:10px">jul 06, 15:47</div></div>
+          <div style="flex:1;border-top:2px solid #164A2A;padding-top:8px;color:#496552">LP unlock<div style="font-size:10px">aug 08</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px">
+          <div>
+            <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:8px">snipers · block 0 to 2</div>
+            <div style="display:grid;grid-template-columns:1.4fr .8fr .8fr .8fr;gap:10px;padding:8px 0;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>wallet</span><span>bought</span><span>status</span><span>when</span></div>
+            <sc-for list="{{ snipers }}" as="sn" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:1.4fr .8fr .8fr .8fr;gap:10px;padding:10px 0;font-size:12px;border-bottom:1px solid #164A2A"><a href="#" onClick="{{ goRapsheet }}" style="color:#00C805">{{ sn.w }}</a><span>{{ sn.bought }}</span><span style="color:{{ sn.sc }}">{{ sn.status }}</span><span style="color:#7FA68A">{{ sn.when }}</span></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:12px;line-height:19px"><span style="color:#7FA68A">bundles:</span> <span style="color:#FF3B30">18% of supply</span> across 14 wallets, one funder, block 0.</div>
+            <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:12px;line-height:19px"><span style="color:#7FA68A">historical bundles:</span> this deployer bundled 3 of its last 4 launches. average bundle 24%.</div>
+            <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:12px;line-height:19px"><span style="color:#7FA68A">funding origin:</span> deploy gas traced 2 hops to a no KYC exchange.</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ moneyLocked }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:60px 20px;text-align:center">
+        <div style="font-size:22px;color:#D4A937;margin-bottom:10px">◆</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">Legend tools sit behind the vault door.</div>
+        <div style="font-size:12px;color:#7FA68A;margin-bottom:20px;line-height:19px">Funding origin by KYC tier, smart money holders,<br>and live smart money buys.</div>
+        <button onClick="{{ goAccount }}" style="background:#D4A937;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:10px 18px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Open the vault</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{ moneyOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">funding origin by kyc tier</div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>full KYC exchanges</span><span style="color:#00C805">22%</span></div>
+          <div style="height:8px;background:#06140B;border:1px solid #164A2A;margin-bottom:12px"><div style="width:22%;height:8px;background:#00C805"></div></div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>light KYC</span><span style="color:#FFB020">31%</span></div>
+          <div style="height:8px;background:#06140B;border:1px solid #164A2A;margin-bottom:12px"><div style="width:31%;height:8px;background:#FFB020"></div></div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>no KYC or mixer adjacent</span><span style="color:#FF3B30">47%</span></div>
+          <div style="height:8px;background:#06140B;border:1px solid #164A2A"><div style="width:47%;height:8px;background:#FF3B30"></div></div>
+          <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:12px;line-height:19px;margin-top:16px"><span style="color:#7FA68A">smart money holders:</span> 2 wallets with positive 30d realized PnL hold a combined 1.8%.</div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">live smart money buys <span style="display:inline-block;width:6px;height:10px;background:#00C805;animation:blink 1.1s steps(1) infinite;vertical-align:middle"></span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:12px"><span>0x7ba2…e1c9</span><span style="color:#00C805">+$4,100</span><span style="color:#496552">2m</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:12px"><span>0x22fd…09b1</span><span style="color:#00C805">+$1,850</span><span style="color:#496552">18m</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:12px"><span>quietpurse.eth</span><span style="color:#FF3B30">-$9,600</span><span style="color:#496552">44m</span></div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tLiq }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px;display:grid;grid-template-columns:1fr 1.3fr;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:1px">
+          <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:12px;line-height:20px"><span style="color:#7FA68A">LP status:</span> <span style="color:#00C805">locked 30 days</span> via archery.fun locker.<br><span style="color:#7FA68A">unlock:</span> aug 08, 2026 · <span style="color:#7FA68A">owner:</span> deployer wallet<br><span style="color:#7FA68A">burned:</span> 0%</div>
+          <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:12px;line-height:20px"><span style="color:#7FA68A">pool:</span> $184k paired · single pool · no side pools found</div>
+          <div style="background:#3a2a08;border:1px solid #FFB020;border-radius:0;padding:12px 16px;font-size:11px;color:#FFB020;line-height:18px">! LP owner is the deployer. When the lock lapses, this becomes a one signature rug.</div>
+        </div>
+        <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:18px">
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:14px">exit liquidity calculator</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="color:#7FA68A">sell size · of your $12,400 bag</span><span style="color:#E6FBEA">{{ sell }}% · {{ sellUsd }}</span></div>
+          <input type="range" min="1" max="100" value="{{ sell }}" onChange="{{ setSell }}" style="width:100%">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#164A2A;border:1px solid #164A2A;border-radius:0;overflow:hidden;margin-top:16px">
+            <div style="background:#0A1F12;padding:14px"><div style="font-size:20px;font-weight:700;color:{{ impactColor }}">{{ impact }}</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">price impact</div></div>
+            <div style="background:#0A1F12;padding:14px"><div style="font-size:20px;font-weight:700">{{ recv }}</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">you receive, est</div></div>
+            <div style="background:#0A1F12;padding:14px"><div style="font-size:20px;font-weight:700;color:#00C805">$4,860</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">max safe exit at 5%</div></div>
+          </div>
+          <div style="margin-top:14px">
+            <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#496552;margin-bottom:8px">price impact by sell size</div>
+            <div style="display:flex;align-items:flex-end;gap:6px;height:58px">
+              <sc-for list="{{ impactBars }}" as="ib" hint-placeholder-count="5"><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;height:58px"><div style="width:100%;height:{{ ib.h }}px;background:{{ ib.c }};opacity:.85"></div><span style="font-size:8px;color:#496552">{{ ib.l }}</span></div></sc-for>
+            </div>
+          </div>
+          <div style="font-size:10px;color:#496552;margin-top:12px">Estimates against the current pool. A thin pool moves under your own feet. Not financial advice. DYOR.</div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tCreator }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">dev wallet · 0x3d71…f09c</div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">holds</span><span>4.2% of supply</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">last move</span><span style="color:#FFB020">sent 12 SOL to fresh wallet · 6h ago</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">sells this token</span><span style="color:#00C805">none yet</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:12px"><span style="color:#7FA68A">alert available</span><button onClick="{{ looseArrow }}" style="background:transparent;border:none;color:#00C805;font-size:12px;cursor:pointer;padding:0;text-decoration:underline">set alert on dev sell</button></div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">deployer reputation</div>
+          <div style="display:flex;gap:10px;margin-bottom:12px">
+            <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:3px;background:#8B1E1A;color:#E6FBEA">2 confirmed rugs</span>
+            <span style="font-size:11px;padding:4px 10px;border-radius:3px;border:1px solid #FFB020;color:#FFB020">31% survival, 30d</span>
+          </div>
+          <div style="font-size:11px;color:#496552;margin-bottom:8px">past launches, click to open</div>
+          <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #164A2A;font-size:12px"><a href="#" onClick="{{ goDeployerFn }}" style="color:#00C805">$VESPERS</a><span style="color:#FF3B30">rugged · jun 20</span></div>
+          <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #164A2A;font-size:12px"><a href="#" onClick="{{ goDeployerFn }}" style="color:#00C805">$LANTERN</a><span style="color:#FF3B30">rugged · may 28</span></div>
+          <div style="display:flex;justify-content:space-between;padding:9px 0;font-size:12px"><a href="#" onClick="{{ goDeployerFn }}" style="color:#00C805">$WARDEN</a><span style="color:#7FA68A">dead · may 02</span></div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tSocial }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">presence checks</div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">x account</span><span style="color:#FFB020">! 4 days old, bought followers likely</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">telegram</span><span style="color:#00C805">✓ 2,100 members, active mods</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">website</span><span style="color:#FF3B30">✕ none found</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:12px"><span style="color:#7FA68A">kol holders</span><span style="color:#7FA68A">2 tracked KOLs hold, combined 0.9%</span></div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">crew vote · 214 ballots</div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>bullish</span><span style="color:#00C805">38%</span></div>
+          <div style="height:10px;background:#06140B;border:1px solid #164A2A;margin-bottom:12px"><div style="width:38%;height:10px;background:#00C805"></div></div>
+          <div style="font-size:12px;color:#7FA68A;margin-bottom:5px;display:flex;justify-content:space-between"><span>bearish</span><span style="color:#FF3B30">62%</span></div>
+          <div style="height:10px;background:#06140B;border:1px solid #164A2A"><div style="width:62%;height:10px;background:#FF3B30"></div></div>
+          <div style="font-size:10px;color:#496552;margin-top:14px">Votes are sentiment, not evidence. The modules above outrank the crowd.</div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ sPulse }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Bounty Board">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">Bounty Board</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Discover</span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Fresh tokens as they launch, close their curve, and land on Uniswap. Every one arrives pre scored.</div>
+  </div>
+  <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;margin-bottom:1px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:0 14px">
+    <div style="display:flex;gap:2px">
+      <sc-for list="{{ pulseTabs }}" as="pt" hint-placeholder-count="3"><button onClick="{{ pt.go }}" style="{{ pt.style }}">{{ pt.label }}</button></sc-for>
+    </div>
+    <span style="width:1px;height:18px;background:#164A2A"></span>
+    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:8px 0">
+      <span style="color:#496552;font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-right:4px">sort</span>
+      <sc-for list="{{ pulseSorts }}" as="ps" hint-placeholder-count="6"><button onClick="{{ ps.go }}" style="{{ ps.style }}">{{ ps.label }}</button></sc-for>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:6px;align-items:center;padding:8px 0;font-size:11px">
+      <span style="border:1px solid #164A2A;padding:5px 9px;border-radius:3px;color:#7FA68A">min liq: $25k</span>
+      <span style="border:1px solid #164A2A;padding:5px 9px;border-radius:3px;color:#7FA68A">max top10: 60%</span>
+      <button onClick="{{ toggleFlagged }}" style="background:transparent;border:1px solid #164A2A;color:#FFB020;font-size:11px;padding:5px 9px;border-radius:3px;cursor:pointer">{{ flaggedLabel }}</button>
+    </div>
+  </div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+    <div style="display:grid;grid-template-columns:30px 1.7fr 1.4fr 70px 70px 66px 46px 58px 64px;gap:10px;padding:9px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A;align-items:center">
+      <span>#</span><span>token</span><span>risk</span><span style="text-align:right">mcap</span><span style="text-align:right">vol 24h</span><span style="text-align:right">liq</span><span style="text-align:right">age</span><span style="text-align:right">24h</span><span style="text-align:right">7d</span>
+    </div>
+    <sc-for list="{{ pulseRows }}" as="p" hint-placeholder-count="4">
+      <div onClick="{{ goScan }}" onMouseEnter="{{ p.pv }}" onMouseLeave="{{ pvOff }}" style="display:grid;grid-template-columns:30px 1.7fr 1.4fr 70px 70px 66px 46px 58px 64px;gap:10px;align-items:center;background:#06140B;padding:7px 16px;border-bottom:1px solid #113020;font-size:12px;cursor:pointer" style-hover="background:#0A1F12">
+        <span style="color:#496552">{{ p.rank }}</span>
+        <span style="display:flex;align-items:center;gap:9px;min-width:0">
+          <span style="width:24px;height:24px;flex:none;border-radius:50%;background:#164A2A;color:#7FA68A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">{{ p.lg }}</span>
+          <span style="display:flex;flex-direction:column;min-width:0;line-height:15px"><span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.t }}</span><span style="font-size:10px;color:#496552;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.n }}</span></span>
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;row-gap:2px">
+          <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ p.bg }};color:{{ p.fg }};white-space:nowrap">{{ p.sc }} {{ p.band }}</span>
+          <span style="font-size:9px;color:{{ p.hpc }}">hp {{ p.hp }}</span>
+        </span>
+        <span style="text-align:right">{{ p.mc }}</span>
+        <span style="text-align:right">{{ p.vol }}</span>
+        <span style="text-align:right">{{ p.liq }}</span>
+        <span style="text-align:right;color:#7FA68A">{{ p.age }}</span>
+        <span style="text-align:right;color:{{ p.cc }}">{{ p.chg }}</span>
+        <svg width="60" height="16" viewBox="0 0 68 18" preserveAspectRatio="none" style="justify-self:end"><polyline points="{{ p.spark }}" fill="none" stroke="{{ p.sparkCol }}" stroke-width="1.5"></polyline></svg>
+      </div>
+    </sc-for>
+    <div style="padding:10px 16px;font-size:11px;color:#496552;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <span>Scam templates and repeat offender deployers are demoted or hidden by default. Click any row for the full scan.</span>
+      <span style="color:#FFB020">{{ pulseHiddenLabel }}</span>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sQuiver }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="The Quiver">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">The Quiver</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Watchlist</span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">The tokens and wallets you are watching. Set an alert to get told the moment one moves.</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:1px;align-items:start">
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:700">Marks · 5 tokens, 2 wallets</span><span style="font-size:11px;color:#496552">risk refreshed 40s ago</span></div>
+      <div style="display:grid;grid-template-columns:.9fr .8fr .6fr 1.9fr 1.5fr .3fr;gap:10px;padding:9px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>mark</span><span>price</span><span>24h</span><span>risk</span><span>latest track</span><span></span></div>
+      <sc-for list="{{ quiver }}" as="q" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:.9fr .8fr .6fr 1.9fr 1.5fr .3fr;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid #164A2A;font-size:12px" style-hover="background:#0A1F12">
+          <a href="#" onClick="{{ goScan }}" onMouseEnter="{{ q.pv }}" onMouseLeave="{{ pvOff }}" style="font-weight:700;color:#E6FBEA">{{ q.t }}</a>
+          <span style="color:#7FA68A">{{ q.px }}</span>
+          <span style="display:flex;align-items:center;gap:7px"><svg width="50" height="15" viewBox="0 0 68 18" preserveAspectRatio="none" style="flex:none"><polyline points="{{ q.spark }}" fill="none" stroke="{{ q.sparkCol }}" stroke-width="1.5"></polyline></svg><span style="color:{{ q.cc }}">{{ q.chg }}</span></span>
+          <span style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;row-gap:2px"><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ q.bg }};color:{{ q.fg }};white-space:nowrap">{{ q.sc }} {{ q.band }}</span><span style="font-size:9px;color:{{ q.hpc }}">hp {{ q.hp }}</span><span style="font-size:9px;color:#7FA68A">t10 {{ q.top }}</span><span style="font-size:9px;color:#7FA68A">lp {{ q.lp }}</span></span>
+          <span style="color:#496552;font-size:11px">{{ q.note }}</span>
+          <button onClick="{{ looseArrow }}" style="background:transparent;border:none;color:#00C805;cursor:pointer;font-size:14px" title="set alert">＋</button>
+        </div>
+      </sc-for>
+      <div style="padding:10px 16px;font-size:11px;color:#496552">Wallets watched: quietpurse.eth, 0x3d71…f09c. <a href="#" onClick="{{ goRapsheet }}">rap sheets ❯</a></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Set an alert</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7FA68A;margin-bottom:6px">mark</div>
+        <select style="width:100%;background:#06140B;border:1px solid #164A2A;color:#E6FBEA;font-size:12px;padding:9px 10px;border-radius:3px;outline:none;margin-bottom:12px"><option>$NIGHTJAR</option><option>$NOCK</option><option>$SHRF</option><option>wallet: 0x3d71…f09c</option></select>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7FA68A;margin-bottom:6px">trigger</div>
+        <select value="{{ arrowTrigger }}" onChange="{{ setTrigger }}" style="width:100%;background:#06140B;border:1px solid #164A2A;color:#E6FBEA;font-size:12px;padding:9px 10px;border-radius:3px;outline:none;margin-bottom:12px"><option>LP pull</option><option>price collapse over 30%</option><option>dev sell or move</option><option>whale dump</option><option>proxy upgrade</option></select>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7FA68A;margin-bottom:8px">delivery</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;font-size:11px">
+          <span style="border:1px solid #00C805;color:#00C805;padding:5px 10px;border-radius:3px">in app</span>
+          <span style="border:1px solid #00C805;color:#00C805;padding:5px 10px;border-radius:3px">telegram</span>
+          <span style="border:1px solid #164A2A;color:#496552;padding:5px 10px;border-radius:3px">webhook ◆</span>
+        </div>
+        <button onClick="{{ looseArrow }}" style="width:100%;background:#00C805;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:11px;cursor:pointer">Set alert</button>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+        <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:13px;font-weight:700">Alert history</div>
+        <sc-for list="{{ arrowsStruck }}" as="a" hint-placeholder-count="3">
+          <div style="padding:11px 16px;border-bottom:1px solid #164A2A;font-size:11px">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:3px"><span style="color:{{ a.c }}">➶ fired</span><span style="font-weight:700;color:#E6FBEA">{{ a.t }}</span><span style="margin-left:auto;color:#496552;font-size:10px">{{ a.time }}</span></div>
+            <div style="color:#7FA68A;line-height:16px">{{ a.msg }}</div>
+          </div>
+        </sc-for>
+        <div style="padding:11px 16px;font-size:11px;color:#496552">3 alerts armed: $TITHE LP pull, $NOCK price line, dev move on 0x3d71.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sSheriff }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Sheriff Watch">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">Sheriff Watch</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Whale Tracker</span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Heavy purses on the move. Large wallets, what they hold, and who is selling.</div>
+  </div>
+  <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:10px 16px;margin-bottom:1px;display:flex;gap:10px;font-size:11px;align-items:center;flex-wrap:wrap">
+    <span style="color:#496552;font-size:10px;letter-spacing:.12em;text-transform:uppercase">wallet groups</span>
+    <span style="border:1px solid #00C805;color:#00C805;padding:6px 10px;border-radius:3px;background:#0D2A19;cursor:pointer">all labeled</span>
+    <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3"><span style="border:1px solid #164A2A;padding:6px 10px;border-radius:3px;color:#7FA68A;cursor:pointer" style-hover="border-color:#2B7A3D">{{ g.name }} · {{ g.count }}</span></sc-for>
+    <span style="border:1px dashed #164A2A;padding:6px 10px;border-radius:3px;color:#496552;cursor:pointer" style-hover="color:#7FA68A">+ new group</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:1px;align-items:start">
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <div style="display:grid;grid-template-columns:1.4fr 1.3fr .8fr 1.6fr .4fr;gap:10px;padding:11px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>wallet</span><span>labels</span><span>holdings</span><span>last movement</span><span>when</span></div>
+      <sc-for list="{{ whales }}" as="w" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:1.4fr 1.3fr .8fr 1.6fr .4fr;gap:10px;align-items:center;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px" style-hover="background:#0A1F12">
+          <a href="#" onClick="{{ goRapsheet }}" style="color:#00C805">{{ w.w }}</a>
+          <span style="font-size:10px;color:#7FA68A">{{ w.tags }}</span>
+          <span>{{ w.hold }}</span>
+          <span style="color:{{ w.mc }}">{{ w.move }}</span>
+          <span style="color:#496552;font-size:10px">{{ w.time }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:13px;font-weight:700">Heavy purse alerts</div>
+      <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;line-height:18px"><span style="color:#FFB020">Sheriff Watch caught a heavy purse moving.</span><br><span style="color:#7FA68A">heavypurse.eth sent $500k to a cex deposit address. 31m ago.</span></div>
+      <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;line-height:18px"><span style="color:#FF3B30">Coordinated exit forming.</span><br><span style="color:#7FA68A">3 labeled snipers sold $GALLOWS inside 2 blocks.</span></div>
+      <div style="padding:12px 16px;font-size:11px;color:#496552">Alerts on heavy purses come with the Merry Men tier. <a href="#" onClick="{{ goAccount }}">upgrade ❯</a></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sHeist }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="The Heist">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">The Heist</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Smart Money</span><span style="display:inline-block;width:7px;height:12px;background:#00C805;animation:blink 1.1s steps(1) infinite"></span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">What smart money is buying right now, the moment they buy it.</div>
+  </div>
+  <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:10px 16px;margin-bottom:1px;display:flex;gap:10px;font-size:11px;align-items:center">
+    <span style="color:#496552;font-size:10px;letter-spacing:.12em;text-transform:uppercase">filter</span>
+    <span style="border:1px solid #164A2A;padding:6px 10px;border-radius:3px;color:#7FA68A">token: all</span>
+    <span style="border:1px solid #164A2A;padding:6px 10px;border-radius:3px;color:#7FA68A">wallet: all labeled</span>
+    <span style="border:1px solid #00C805;color:#00C805;padding:6px 10px;border-radius:3px;background:#0D2A19">size: over $5k</span>
+  </div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+    <sc-for list="{{ heist }}" as="h" hint-placeholder-count="5">
+      <div style="display:grid;grid-template-columns:1.3fr .9fr .55fr .7fr 2fr .35fr;gap:10px;align-items:center;padding:13px 18px;border-bottom:1px solid #164A2A;font-size:13px" style-hover="background:#0A1F12">
+        <a href="#" onClick="{{ goRapsheet }}" style="color:#E6FBEA">{{ h.w }}</a>
+        <span style="font-size:10px;color:{{ h.tc }}">{{ h.tag }}</span>
+        <span style="color:{{ h.ac }};font-weight:700">{{ h.act }}</span>
+        <span>{{ h.amt }}</span>
+        <span style="display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap;row-gap:2px">
+          <a href="#" onClick="{{ goScan }}" onMouseEnter="{{ h.pv }}" onMouseLeave="{{ pvOff }}" style="color:#E6FBEA;font-weight:700">{{ h.t }}</a>
+          <svg width="46" height="14" viewBox="0 0 68 18" preserveAspectRatio="none" style="flex:none"><polyline points="{{ h.spark }}" fill="none" stroke="{{ h.sparkCol }}" stroke-width="1.5"></polyline></svg>
+          <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:2px;background:{{ h.bg }};color:{{ h.fg }};white-space:nowrap">{{ h.sc }} {{ h.band }}</span>
+          <span style="font-size:9px;color:{{ h.hpc }}">hp {{ h.hp }}</span>
+          <span style="font-size:9px;color:#7FA68A">t10 {{ h.top }}</span>
+          <span style="font-size:9px;color:#7FA68A">lp {{ h.lp }}</span>
+        </span>
+        <span style="color:#496552;font-size:10px;text-align:right">{{ h.time }}</span>
+      </div>
+    </sc-for>
+    <div style="padding:11px 18px;font-size:11px;color:#496552">Feed shows labeled wallets only. Labels earn their place: 30d realized PnL, verified provenance, no wash trades.</div>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{ sWallet }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Wallet Tracker">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <span style="font-size:24px;font-weight:700">Wallet Tracker</span>
+      <span style="font-size:13px;font-weight:700">0x7ba2…e1c9</span>
+      <span style="font-size:10px;color:#00C805;border:1px solid #00C805;padding:3px 8px;border-radius:3px">smart money</span>
+      <a href="#" onClick="{{ goRapsheet }}" style="margin-left:auto;font-size:11px;color:#7FA68A">view rap sheet ❯</a>
+    </div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">One wallet laid bare. Holdings, spoils, and the risk riding in every bag. <span style="color:#D4A937">❯</span><span style="color:#496552"> wallet 0x7ba2…e1c9</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#164A2A;border:1px solid #164A2A;border-radius:0;overflow:hidden;margin-bottom:14px">
+    <div style="background:#0D2A19;padding:16px"><div style="font-size:22px;font-weight:700;color:#00C805">+$268k</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">spoils · realized, 7d</div></div>
+    <div style="background:#0D2A19;padding:16px"><div style="font-size:22px;font-weight:700">$840k</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">holdings</div></div>
+    <div style="background:#0D2A19;padding:16px"><div style="font-size:22px;font-weight:700">64%</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">win rate, 30d</div></div>
+    <div style="background:#0D2A19;padding:16px"><div style="font-size:22px;font-weight:700;color:#FFB020">7 tokens</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">diversification: thin</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:1px;align-items:start">
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:13px;font-weight:700">Holdings, with live risk</div>
+      <div style="display:grid;grid-template-columns:.8fr .7fr .7fr 1.9fr;gap:10px;padding:9px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>token</span><span>value</span><span>pnl</span><span>risk</span></div>
+      <sc-for list="{{ holdings }}" as="h" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:.8fr .7fr .7fr 1.9fr;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid #164A2A;font-size:12px">
+          <a href="#" onClick="{{ goScan }}" onMouseEnter="{{ h.pv }}" onMouseLeave="{{ pvOff }}" style="font-weight:700;color:#E6FBEA">{{ h.t }}</a><span>{{ h.amt }}</span><span style="color:{{ h.pc2 }}">{{ h.pnl }}</span>
+          <span style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;row-gap:2px"><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ h.bg }};color:{{ h.fg }};white-space:nowrap">{{ h.sc }} {{ h.band }}</span><span style="font-size:9px;color:{{ h.hpc }}">hp {{ h.hp }}</span><span style="font-size:9px;color:#7FA68A">lp {{ h.lp }}</span></span>
+        </div>
+      </sc-for>
+      <div style="padding:12px 16px;font-size:11px;color:#496552">Recent trades: bought $18.7k $SCARLET 1m ago · sold $31k $FLETCH 3h ago · bought $9k $NOCK 8h ago</div>
+    </div>
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">Risk heatmap · bag exposure</div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px">
+        <div style="height:34px;background:#00C805;opacity:.85"></div><div style="height:34px;background:#00C805;opacity:.55"></div><div style="height:34px;background:#2B7A3D"></div><div style="height:34px;background:#FFB020;opacity:.8"></div><div style="height:34px;background:#2B7A3D"></div><div style="height:34px;background:#FF3B30;opacity:.85"></div>
+        <div style="height:34px;background:#2B7A3D"></div><div style="height:34px;background:#00C805;opacity:.4"></div><div style="height:34px;background:#FFB020;opacity:.5"></div><div style="height:34px;background:#2B7A3D"></div><div style="height:34px;background:#06140B;border:1px solid #164A2A"></div><div style="height:34px;background:#06140B;border:1px solid #164A2A"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#496552;margin-top:8px"><span>low risk</span><span>high risk</span></div>
+      <div style="font-size:11px;color:#7FA68A;margin-top:14px;line-height:17px">One bag sits above high risk: $SHRF at 66. It is 11 percent of the purse.</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:1px;align-items:start;margin-top:1px">
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:10px"><span>realized pnl · 30d</span><span style="color:#00C805;letter-spacing:0;text-transform:none">+$268k</span></div>
+      <svg width="100%" height="110" viewBox="0 0 560 110" preserveAspectRatio="none" style="display:block">
+        <line x1="0" x2="560" y1="78" y2="78" stroke="#164A2A" stroke-width="1" stroke-dasharray="3,3"></line>
+        <polyline points="{{ pnlLine }}" fill="none" stroke="#00C805" stroke-width="1.5"></polyline>
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#496552;margin-top:6px"><span>jun 09</span><span>jun 24</span><span>today</span></div>
+      <div style="font-size:9px;color:#496552;margin-top:8px">Realized only. Paper gains do not count here. Not financial advice. DYOR.</div>
+    </div>
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">pnl by token</div>
+      <sc-for list="{{ pnlBars }}" as="pb" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:76px 1fr 64px;gap:8px;align-items:center;margin-bottom:10px;font-size:11px">
+          <a href="#" onClick="{{ goScan }}" style="font-weight:700;color:#E6FBEA">{{ pb.t }}</a>
+          <div style="height:9px;background:#06140B;border:1px solid #164A2A"><div style="width:{{ pb.w }}%;height:9px;background:{{ pb.c }};opacity:.85"></div></div>
+          <span style="color:{{ pb.c }};text-align:right">{{ pb.val }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sRapsheet }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Wallet rap sheet">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:24px;font-weight:700">Rap Sheet</span>
+      <span style="font-size:13px;font-weight:700">0x91be…44aa</span>
+      <span style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:3px;background:#8B1E1A;color:#E6FBEA">repeat offender</span>
+      <span style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:3px;border:1px solid #FF3B30;color:#FF3B30">sniper</span>
+      <span style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:3px;border:1px solid #FFB020;color:#FFB020">insider</span>
+    </div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">The record on this wallet. Every token it touched and how each one ended. <span style="color:#D4A937">❯</span><span style="color:#496552"> rap 0x91be…44aa</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:1px;align-items:start">
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <div style="display:grid;grid-template-columns:1fr .9fr .9fr 1.4fr;gap:10px;padding:11px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>token</span><span>role flagged</span><span>outcome</span><span>evidence</span></div>
+      <div style="display:grid;grid-template-columns:1fr .9fr .9fr 1.4fr;gap:10px;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$CURFEW</a><span style="color:#FFB020">insider</span><span style="color:#FF3B30">rugged</span><span style="color:#7FA68A">block 0 buy, funded by deployer</span></div>
+      <div style="display:grid;grid-template-columns:1fr .9fr .9fr 1.4fr;gap:10px;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$GALLOWS</a><span style="color:#FFB020">sniper</span><span style="color:#FFB020">live trap</span><span style="color:#7FA68A">sold 92% in first hour</span></div>
+      <div style="display:grid;grid-template-columns:1fr .9fr .9fr 1.4fr;gap:10px;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$TOLLGATE</a><span style="color:#FFB020">bundle member</span><span style="color:#FF3B30">rugged</span><span style="color:#7FA68A">one of 14 wallets, one funder</span></div>
+      <div style="display:grid;grid-template-columns:1fr .9fr .9fr 1.4fr;gap:10px;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$ABBOT</a><span style="color:#FFB020">insider</span><span style="color:#FF3B30">rugged</span><span style="color:#7FA68A">cross funded with dev wallet</span></div>
+      <div style="display:grid;grid-template-columns:1fr .9fr .9fr 1.4fr;gap:10px;padding:12px 16px;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$NOCK</a><span style="color:#7FA68A">holder</span><span style="color:#00C805">live</span><span style="color:#7FA68A">no adverse action recorded</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#164A2A;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+        <div style="background:#0D2A19;padding:16px"><div style="font-size:24px;font-weight:700">23</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">tokens appeared in</div></div>
+        <div style="background:#0D2A19;padding:16px"><div style="font-size:24px;font-weight:700;color:#FF3B30">3</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">confirmed rugs</div></div>
+      </div>
+      <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:12px;color:#7FA68A;line-height:19px">Unknown is not the same as clean. A wallet with no flags may simply be new coats on an old body. Weigh absence of evidence accordingly.</div>
+      <button onClick="{{ looseArrow }}" style="background:transparent;border:1px solid #164A2A;color:#00C805;font-size:12px;padding:10px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">＋ Set alert on this wallet</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sDeployer }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Deployer Lookup">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:24px;font-weight:700">Deployer Lookup</span>
+      <span style="font-size:13px;font-weight:700">0x3d71…f09c</span>
+      <span style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:3px;background:#8B1E1A;color:#E6FBEA">serial rug flag</span>
+    </div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Every launch from this hand and how long each one lived. <span style="color:#D4A937">❯</span><span style="color:#496552"> deployer 0x3d71…f09c</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#164A2A;border:1px solid #164A2A;border-radius:0;overflow:hidden;margin-bottom:14px">
+    <div style="background:#0D2A19;padding:16px"><div style="font-size:22px;font-weight:700">11</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">tokens launched</div></div>
+    <div style="background:#0D2A19;padding:16px"><div style="font-size:22px;font-weight:700;color:#FF3B30">3</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">confirmed rugs</div></div>
+    <div style="background:#0D2A19;padding:16px"><div style="font-size:22px;font-weight:700;color:#FFB020">18%</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">30 day survival</div></div>
+    <div style="background:#0D2A19;padding:16px"><div style="font-size:22px;font-weight:700">2.1d</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">median token life</div></div>
+  </div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+    <div style="display:grid;grid-template-columns:1fr 1fr .8fr .8fr 1fr;gap:10px;padding:11px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>token</span><span>launched</span><span>peak mc</span><span>status</span><span>first scan score</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr .8fr .8fr 1fr;gap:10px;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$NIGHTJAR</a><span style="color:#7FA68A">jul 06</span><span>$2.1M</span><span style="color:#00C805">live</span><span style="color:#FF3B30">74 high</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr .8fr .8fr 1fr;gap:10px;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$VESPERS</a><span style="color:#7FA68A">jun 18</span><span>$890k</span><span style="color:#FF3B30">rugged</span><span style="color:#FF3B30">81 extreme</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr .8fr .8fr 1fr;gap:10px;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$LANTERN</a><span style="color:#7FA68A">may 26</span><span>$310k</span><span style="color:#FF3B30">rugged</span><span style="color:#FF3B30">77 extreme</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr .8fr .8fr 1fr;gap:10px;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$WARDEN</a><span style="color:#7FA68A">may 02</span><span>$120k</span><span style="color:#7FA68A">dead</span><span style="color:#FF3B30">58 high</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr .8fr .8fr 1fr;gap:10px;padding:12px 16px;font-size:12px;align-items:center"><a href="#" onClick="{{ goScan }}" style="color:#00C805;font-weight:600">$MATINS</a><span style="color:#7FA68A">apr 14</span><span>$95k</span><span style="color:#FF3B30">rugged</span><span style="color:#FF3B30">84 extreme</span></div>
+  </div>
+  <div style="margin-top:12px;font-size:12px;color:#7FA68A">Next launch from this wallet triggers an automatic flag on the Bounty Board. <button onClick="{{ looseArrow }}" style="background:transparent;border:none;color:#00C805;cursor:pointer;font-size:12px;padding:0;text-decoration:underline">alert me when they deploy</button></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sRugsDb }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Rugs · Database">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">Rugs</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Rug Database</span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Every token the engine flagged. Read the live feed, search the database, or pull a receipt.</div>
+  </div>
+  <div style="display:flex;gap:2px;border-bottom:1px solid #164A2A;margin-bottom:14px">
+    <button onClick="{{ rugFeedTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;color:#7FA68A">Feed</button>
+    <button onClick="{{ rugDbTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid #00C805;color:#E6FBEA;font-weight:700">Database</button>
+    <button onClick="{{ rugRecTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;color:#7FA68A">Receipts</button>
+  </div>
+  <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:10px 16px;margin-bottom:1px;display:flex;gap:10px;font-size:11px;align-items:center">
+    <span style="color:#D4A937">❯</span>
+    <input placeholder="search ticker, name, or address" style="flex:1;background:transparent;border:none;outline:none;color:#E6FBEA;font-size:12px;padding:6px 0">
+    <span style="border:1px solid #164A2A;padding:6px 10px;border-radius:3px;color:#7FA68A">band: all</span>
+    <span style="border:1px solid #164A2A;padding:6px 10px;border-radius:3px;color:#7FA68A">launchpad: all</span>
+    <span style="border:1px solid #164A2A;padding:6px 10px;border-radius:3px;color:#7FA68A">age: all</span>
+  </div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+    <div style="display:grid;grid-template-columns:.9fr .9fr 1.8fr .6fr .5fr .6fr .5fr .6fr;gap:10px;padding:11px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>token</span><span>score</span><span>key flags</span><span>mcap</span><span>age</span><span>liquidity</span><span>scans</span><span>last seen</span></div>
+    <sc-for list="{{ rugdb }}" as="r" hint-placeholder-count="6">
+      <div style="display:grid;grid-template-columns:.9fr .9fr 1.8fr .6fr .5fr .6fr .5fr .6fr;gap:10px;align-items:center;background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:12px" style-hover="background:#0A1F12">
+        <span style="display:flex;align-items:center;gap:7px;min-width:0"><a href="#" onClick="{{ goScan }}" onMouseEnter="{{ r.pv }}" onMouseLeave="{{ pvOff }}" style="font-weight:700;color:#E6FBEA">{{ r.t }}</a><svg width="42" height="13" viewBox="0 0 68 18" preserveAspectRatio="none" style="flex:none"><polyline points="{{ r.spark }}" fill="none" stroke="{{ r.sparkCol }}" stroke-width="1.5"></polyline></svg></span>
+        <span><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ r.bg }};color:{{ r.fg }};white-space:nowrap">{{ r.sc }} {{ r.band }}</span></span>
+        <span style="color:#7FA68A;font-size:11px">{{ r.flags }}</span>
+        <span>{{ r.mc }}</span><span style="color:#7FA68A">{{ r.age }}</span><span>{{ r.liq }}</span><span style="color:#7FA68A">{{ r.scans }}</span><span style="color:#496552">{{ r.when }}</span>
+      </div>
+    </sc-for>
+    <div style="padding:11px 16px;font-size:11px;color:#496552">9,314 entries. showing 6. refine the search to narrow the hunt.</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sRugsFeed }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Rugs · Feed">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">Rugs</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Rug Database</span><span style="display:inline-block;width:7px;height:12px;background:#00C805;animation:blink 1.1s steps(1) infinite"></span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Every token the engine flagged. Read the live feed, search the database, or pull a receipt.</div>
+  </div>
+  <div style="display:flex;gap:2px;border-bottom:1px solid #164A2A;margin-bottom:14px">
+    <button onClick="{{ rugFeedTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid #00C805;color:#E6FBEA;font-weight:700">Feed</button>
+    <button onClick="{{ rugDbTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;color:#7FA68A">Database</button>
+    <button onClick="{{ rugRecTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;color:#7FA68A">Receipts</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:1px;align-items:start">
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <sc-for list="{{ rugfeed }}" as="r" hint-placeholder-count="5">
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:13px 18px;border-bottom:1px solid #164A2A;font-size:12px" style-hover="background:#0A1F12">
+          <span style="color:{{ r.c }};margin-top:1px">●</span>
+          <div style="flex:1;min-width:0">
+            <span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap"><a href="#" onClick="{{ goScan }}" onMouseEnter="{{ r.pv }}" onMouseLeave="{{ pvOff }}" style="font-weight:700;color:#E6FBEA">{{ r.t }}</a><span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:2px;background:{{ r.bg }};color:{{ r.fg }};white-space:nowrap">{{ r.sc }} {{ r.band }}</span><span style="font-size:9px;color:{{ r.hpc }}">hp {{ r.hp }}</span><span style="font-size:9px;color:#7FA68A">t10 {{ r.top }}</span><span style="font-size:9px;color:#7FA68A">lp {{ r.lp }}</span></span>
+            <div style="color:#7FA68A;margin-top:2px">{{ r.msg }}</div>
+          </div>
+          <span style="color:#496552;font-size:10px">{{ r.time }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#164A2A;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <div style="background:#0D2A19;padding:16px"><div style="font-size:24px;font-weight:700;color:#FF3B30">41</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">flags, 24h</div></div>
+      <div style="background:#0D2A19;padding:16px"><div style="font-size:24px;font-weight:700">312</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">flags, 7d</div></div>
+      <div style="background:#0D2A19;padding:16px"><div style="font-size:24px;font-weight:700;color:#FFB020">8.2h</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">median warning lead</div></div>
+      <div style="background:#0D2A19;padding:16px"><div style="font-size:24px;font-weight:700;color:#00C805">94%</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">flags before collapse</div></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{ sSurvival }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Survival Curves">
+  <div style="margin-bottom:14px">
+    <div style="font-size:24px;font-weight:700">Survival Curves</div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">How long tokens live after launch, broken down by launchpad. Check where any token sits on the curve.</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+    <div style="grid-column:span 6;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+        <span style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A">survival decay · share of launches still alive</span>
+        <div style="margin-left:auto;display:flex;gap:14px;font-size:10px">
+          <sc-for list="{{ survCurves }}" as="cv" hint-placeholder-count="3"><span style="color:{{ cv.col }}">— {{ cv.pad }} · {{ cv.med }}</span></sc-for>
+        </div>
+      </div>
+      <svg width="100%" height="140" viewBox="0 0 720 140" preserveAspectRatio="none" style="display:block">
+        <line x1="0" x2="720" y1="10" y2="10" stroke="#12331E" stroke-width="1"></line>
+        <line x1="0" x2="720" y1="69" y2="69" stroke="#12331E" stroke-width="1"></line>
+        <line x1="0" x2="720" y1="128" y2="128" stroke="#164A2A" stroke-width="1"></line>
+        <sc-for list="{{ survCurves }}" as="cv" hint-placeholder-count="3"><polyline points="{{ cv.pts }}" fill="none" stroke="{{ cv.col }}" stroke-width="1.5"></polyline></sc-for>
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#496552;margin-top:6px"><span>launch</span><span>1d</span><span>3d</span><span>7d</span><span>14d</span><span>30d</span></div>
+    </div>
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:14px">median lifespan by launchpad</div>
+      <sc-for list="{{ survPads }}" as="p" hint-placeholder-count="3">
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span>{{ p.pad }}</span><span style="color:#E6FBEA;font-weight:700">{{ p.med }}</span></div>
+          <div style="height:8px;background:#06140B;border:1px solid #164A2A"><div style="width:{{ p.w }}%;height:8px;background:#2B7A3D"></div></div>
+          <div style="font-size:10px;color:#496552;margin-top:3px">{{ p.deaths }} deaths recorded</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <span style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A">age at death · histogram</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <sc-for list="{{ survChips }}" as="sp" hint-placeholder-count="4"><button onClick="{{ sp.go }}" style="{{ sp.style }}">{{ sp.label }}</button></sc-for>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:120px">
+        <sc-for list="{{ hist }}" as="h" hint-placeholder-count="12"><div style="flex:1;height:{{ h.h }}px;background:#2B7A3D"></div></sc-for>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#496552;margin-top:6px"><span>0h</span><span>12h</span><span>2d</span><span>7d</span><span>30d+</span></div>
+      <div style="font-size:12px;margin-top:14px;color:#7FA68A">All chains median: <span style="color:#E6FBEA;font-weight:700">2.4 days</span></div>
+    </div>
+    <div style="grid-column:span 2;display:flex;flex-direction:column;gap:1px">
+      <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:16px">
+        <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:10px">percentile lookup</div>
+        <div style="display:flex;gap:8px"><input placeholder="token address" style="flex:1;background:#0A1F12;border:1px solid #164A2A;color:#E6FBEA;font-size:11px;padding:9px 10px;border-radius:3px;outline:none"><button onClick="{{ rateLimit }}" style="background:#00C805;color:#0A1F12;border:none;border-radius:3px;font-size:11px;font-weight:700;padding:0 14px;cursor:pointer">Check</button></div>
+        <div style="font-size:11px;color:#7FA68A;margin-top:10px;line-height:17px">$NOCK is 3 days old: already past <span style="color:#00C805;font-weight:700">62%</span> of archery.fun launches.</div>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+        <div style="padding:11px 16px;border-bottom:1px solid #164A2A;font-size:12px;font-weight:700">Recent deaths</div>
+        <div style="padding:10px 16px;border-bottom:1px solid #164A2A;font-size:11px;display:flex;justify-content:space-between"><span>$VESPERS</span><span style="color:#496552">lived 2d 6h</span></div>
+        <div style="padding:10px 16px;border-bottom:1px solid #164A2A;font-size:11px;display:flex;justify-content:space-between"><span>$FRIARFEE</span><span style="color:#496552">lived 9h</span></div>
+        <div style="padding:10px 16px;font-size:11px;display:flex;justify-content:space-between"><span>$CURFEW</span><span style="color:#496552">lived 9d 2h</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sRugsRec }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Rugs · Receipts">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">Rugs</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Rug Database</span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Every token the engine flagged. Read the live feed, search the database, or pull a receipt.</div>
+  </div>
+  <div style="display:flex;gap:2px;border-bottom:1px solid #164A2A;margin-bottom:14px">
+    <button onClick="{{ rugFeedTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;color:#7FA68A">Feed</button>
+    <button onClick="{{ rugDbTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;color:#7FA68A">Database</button>
+    <button onClick="{{ rugRecTab }}" style="padding:9px 16px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid #00C805;color:#E6FBEA;font-weight:700">Receipts</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:1px;align-items:start">
+    <div style="background:#06140B;border:1px solid #8B1E1A;border-radius:0;overflow:hidden">
+      <div style="padding:12px 18px;border-bottom:1px solid #8B1E1A;display:flex;align-items:center;gap:10px"><span style="font-size:10px;font-weight:700;letter-spacing:.2em;color:#FF3B30;text-transform:uppercase">rugged</span><span style="font-size:15px;font-weight:700">$CURFEW</span><span style="margin-left:auto;font-size:10px;color:#7FA68A">receipt #9314 · share ❯</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#164A2A;border-bottom:1px solid #164A2A">
+        <div style="background:#06140B;padding:13px 16px"><div style="font-size:21px;font-weight:700;color:#FF3B30">88</div><div style="font-size:9px;color:#7FA68A">first scan score</div></div>
+        <div style="background:#06140B;padding:13px 16px"><div style="font-size:21px;font-weight:700">6h 12m</div><div style="font-size:9px;color:#7FA68A">warning lead</div></div>
+        <div style="background:#06140B;padding:13px 16px"><div style="font-size:21px;font-weight:700">61</div><div style="font-size:9px;color:#7FA68A">wallets known</div></div>
+      </div>
+      <div style="padding:14px 18px">
+        <div style="position:relative">
+          <svg width="100%" height="84" viewBox="0 0 320 84" preserveAspectRatio="none" style="display:block">
+            <line x1="0" x2="320" y1="80" y2="80" stroke="#164A2A" stroke-width="1"></line>
+            <polyline points="{{ rugLinePre }}" fill="none" stroke="#00C805" stroke-width="1.5"></polyline>
+            <polyline points="{{ rugLinePost }}" fill="none" stroke="#FF3B30" stroke-width="1.5"></polyline>
+            <line x1="{{ rugFlagX }}" x2="{{ rugFlagX }}" y1="4" y2="80" stroke="#D4A937" stroke-width="1" stroke-dasharray="3,3"></line>
+          </svg>
+          <div style="position:absolute;right:26%;top:2px;font-size:9px;color:#D4A937;text-align:right">⚑ flagged extreme<br>6h 12m before the pull</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:#496552;margin-top:6px"><span>price, launch to collapse</span><span>LP pulled · -98%</span></div>
+        <div style="font-size:9px;color:#496552;margin-top:6px">Not financial advice. DYOR.</div>
+      </div>
+    </div>
+    <sc-for list="{{ receipts }}" as="r" hint-placeholder-count="2">
+      <sc-if value="{{ $index }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:16px 18px" style-hover="border-color:#8B1E1A">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:9px;font-weight:700;letter-spacing:.18em;color:#FF3B30;text-transform:uppercase">rugged</span><span style="font-size:14px;font-weight:700">{{ r.t }}</span></div>
+          <div style="display:flex;gap:16px;font-size:11px;color:#7FA68A;flex-wrap:wrap">
+            <span>score <span style="color:#FF3B30;font-weight:700">{{ r.sc }}</span></span>
+            <span>lead <span style="color:#E6FBEA;font-weight:700">{{ r.hrs }}</span></span>
+            <span>known <span style="color:#E6FBEA;font-weight:700">{{ r.known }}</span></span>
+            <span>fall <span style="color:#FF3B30;font-weight:700">{{ r.drop }}</span></span>
+          </div>
+          <div style="font-size:10px;color:#496552;margin-top:12px">open poster ❯</div>
+        </div>
+      </sc-if>
+    </sc-for>
+  </div>
+  <div style="margin-top:14px;font-size:12px;color:#7FA68A">The public gallery holds 9,314 receipts. Each one is proof the scan came first. <a href="#">gallery ❯</a></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sLeaderboard }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Leaderboard">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="font-size:24px;font-weight:700">Leaderboard</span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button onClick="{{ set7 }}" style="{{ p7Style }}">7 days</button>
+        <button onClick="{{ set30 }}" style="{{ p30Style }}">30 days</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">The most profitable wallets on chain, ranked by real closed profit.</div>
+  </div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+    <div style="display:grid;grid-template-columns:.4fr 1.6fr 1fr 1fr .8fr 1fr;gap:10px;padding:11px 18px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>#</span><span>wallet</span><span>label</span><span>realized pnl</span><span>win rate</span><span>wash check</span></div>
+    <sc-for list="{{ leaders }}" as="l" hint-placeholder-count="4">
+      <div style="display:grid;grid-template-columns:.4fr 1.6fr 1fr 1fr .8fr 1fr;gap:10px;align-items:center;padding:13px 18px;border-bottom:1px solid #164A2A;font-size:13px" style-hover="background:#0A1F12">
+        <span style="color:#7FA68A">{{ l.r }}</span>
+        <a href="#" onClick="{{ goRapsheet }}" style="color:#E6FBEA">{{ l.w }}</a>
+        <span style="font-size:10px;color:#7FA68A">{{ l.tag }}</span>
+        <span style="color:#00C805;font-weight:700">{{ l.pnl }}</span>
+        <span>{{ l.wr }}</span>
+        <span style="color:{{ l.wc }};font-size:11px">{{ l.wash }}</span>
+      </div>
+    </sc-for>
+    <div style="padding:11px 18px;font-size:11px;color:#496552">Rankings count realized PnL only. Paper kings do not make the board.</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sCompare }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Token comparison">
+  <div style="margin-bottom:14px">
+    <div style="font-size:24px;font-weight:700">Compare</div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Two marks side by side. The numbers argue for you. <span style="color:#D4A937">❯</span><span style="color:#496552"> compare $NOCK $NIGHTJAR</span></div>
+  </div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:1px;background:#164A2A">
+      <div style="background:#06140B;padding:14px 18px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#496552">metric</div>
+      <div style="background:#06140B;padding:14px 18px"><span style="font-size:15px;font-weight:700">$NOCK</span><span style="font-size:11px;color:#7FA68A"> · Full Nock</span></div>
+      <div style="background:#06140B;padding:14px 18px"><span style="font-size:15px;font-weight:700">$NIGHTJAR</span><span style="font-size:11px;color:#7FA68A"> · Nightjar</span></div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#7FA68A">rug score <span style="color:#D4A937">≠</span></div>
+      <div style="background:#0D2A19;padding:12px 18px"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#00C805;color:#0A1F12">12 · Low</span></div>
+      <div style="background:#0D2A19;padding:12px 18px"><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#FF3B30;color:#0A1F12">74 · High</span></div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#7FA68A">holders <span style="color:#D4A937">≠</span></div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px">4,812</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px">1,208</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#7FA68A">top 10, sybil adjusted <span style="color:#D4A937">≠</span></div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#00C805">16%</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#FF3B30">57%</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#7FA68A">market cap <span style="color:#D4A937">≠</span></div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px">$8.4M</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px">$2.1M</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#7FA68A">liquidity <span style="color:#D4A937">≠</span></div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px">$210k</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px">$184k</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#7FA68A">LP policy <span style="color:#D4A937">≠</span></div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#00C805">burned</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#FFB020">locked 30d, owner is dev</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#7FA68A">key flags <span style="color:#D4A937">≠</span></div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#00C805">none open</div>
+      <div style="background:#0D2A19;padding:12px 18px;font-size:12px;color:#FF3B30">mint reachable · mutable tax · proxy · 2 rug deployer</div>
+    </div>
+  </div>
+  <div style="margin-top:10px;font-size:11px;color:#496552"><span style="color:#D4A937">≠</span> marks a metric where the two marks differ. Color shows which side carries the risk.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sLongbow }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Longbow">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">Longbow</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Exit and Snipe Tools</span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">Exit liquidity math and a quick snipe check. Opens inside any scan. <span style="color:#D4A937">❯</span><span style="color:#496552"> longbow</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:1px;align-items:start">
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:20px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Exit liquidity calculator</div>
+      <div style="font-size:11px;color:#7FA68A;margin-bottom:18px">$NIGHTJAR · pool $184k</div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="color:#7FA68A">position size</span><span style="color:#E6FBEA;font-weight:700">{{ lbSol }}</span></div>
+      <input type="range" min="1" max="500" value="{{ lb }}" onChange="{{ setLb }}" style="width:100%">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#164A2A;border:1px solid #164A2A;border-radius:0;overflow:hidden;margin-top:16px">
+        <div style="background:#06140B;padding:16px"><div style="font-size:22px;font-weight:700;color:{{ lbImpactColor }}">{{ lbImpact }}</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">price impact</div></div>
+        <div style="background:#06140B;padding:16px"><div style="font-size:22px;font-weight:700">{{ lbRecv }}</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">you receive, est</div></div>
+        <div style="background:#06140B;padding:16px"><div style="font-size:22px;font-weight:700;color:#00C805">96 SOL</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">max safe exit at 5%</div></div>
+      </div>
+      <div style="margin-top:14px">
+        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#496552;margin-bottom:8px">price impact by sell size · SOL</div>
+        <div style="display:flex;align-items:flex-end;gap:6px;height:58px">
+          <sc-for list="{{ lbBars }}" as="ib" hint-placeholder-count="5"><div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;height:58px"><div style="width:100%;height:{{ ib.h }}px;background:{{ ib.c }};opacity:.85"></div><span style="font-size:8px;color:#496552">{{ ib.l }}</span></div></sc-for>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#496552;margin-top:12px">A position you cannot exit is a donation. Not financial advice. DYOR.</div>
+    </div>
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:20px">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px"><span style="font-size:14px;font-weight:700">Quick Snipe Check</span><span style="font-size:10px;color:#00C805">answered in 1.4s</span></div>
+      <div style="font-size:11px;color:#7FA68A;margin-bottom:16px">critical signals only, for decisions made at draw speed</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input placeholder="paste address" style="flex:1;background:#06140B;border:1px solid #164A2A;color:#E6FBEA;font-size:12px;padding:10px 12px;border-radius:3px;outline:none" style-focus="border-color:#00C805">
+        <button onClick="{{ rateLimit }}" style="background:#00C805;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:0 16px;cursor:pointer">Check</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">honeypot</span><span style="color:#00C805">✓ clear</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">LP</span><span style="color:#00C805">✓ locked 30d</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">deployer</span><span style="color:#FF3B30">✕ 2 confirmed rugs</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px"><span style="color:#7FA68A">bundles</span><span style="color:#FFB020">! 18%, one funder</span></div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sMerrymen }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Merry Men">
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:700">Merry Men</span><span style="font-size:10px;color:#496552;border:1px solid #164A2A;padding:2px 8px;border-radius:3px;letter-spacing:.06em">Community</span></div>
+    <div style="font-size:12px;color:#7FA68A;margin-top:5px;line-height:18px">The crew. Shared marks, posted charts, and receipts from other outlaws.</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:1px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px 18px;font-size:12px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="color:#00C805;font-weight:700">littlejohn.eth</span><span style="font-size:9px;border:1px solid #00C805;color:#00C805;padding:2px 6px;border-radius:3px">verified caller</span><span style="margin-left:auto;color:#496552;font-size:10px">12m</span></div>
+        <div style="line-height:19px;color:#E6FBEA"><a href="#" onClick="{{ goScan }}" style="color:#E6FBEA;font-weight:700;text-decoration:underline">$SCARLET</a> <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:2px;background:#FFB020;color:#0A1F12">31 · Some risk</span> dev wallet moved 40 SOL to a fresh address ten minutes ago. Receipt attached. Alert set on dev sell.</div>
+        <div style="margin-top:10px;background:#06140B;border:1px solid #164A2A;border-radius:3px;padding:9px 12px;font-size:10px;color:#7FA68A">receipt: tx 0x77aa…31f0 · 40 SOL · fresh wallet, 0 prior tx</div>
+        <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:#496552"><span style="cursor:pointer" style-hover="color:#00C805">▲ 48</span><span style="cursor:pointer">reply · 12</span><span style="cursor:pointer">share</span></div>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px 18px;font-size:12px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="color:#00C805;font-weight:700">tuck_reads</span><span style="margin-left:auto;color:#496552;font-size:10px">41m</span></div>
+        <div style="line-height:19px;color:#E6FBEA">Called <a href="#" onClick="{{ goScan }}" style="color:#E6FBEA;font-weight:700;text-decoration:underline">$CURFEW</a> <span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:2px;background:#8B1E1A;color:#E6FBEA">96 · Rugged</span> at score 88, six hours before the pull. Not magic. The receipt did the talking.</div>
+        <div style="display:flex;align-items:flex-end;gap:2px;height:44px;margin-top:10px">
+          <div style="width:8px;height:26px;background:#2B7A3D"></div><div style="width:8px;height:32px;background:#2B7A3D"></div><div style="width:8px;height:38px;background:#2B7A3D"></div><div style="width:8px;height:42px;background:#2B7A3D"></div><div style="width:8px;height:44px;background:#2B7A3D"></div><div style="width:8px;height:12px;background:#FF3B30"></div><div style="width:8px;height:5px;background:#FF3B30"></div>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:#496552"><span style="cursor:pointer" style-hover="color:#00C805">▲ 131</span><span style="cursor:pointer">reply · 29</span><span style="cursor:pointer">share</span></div>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px 18px;font-size:12px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="color:#00C805;font-weight:700">marian_maps</span><span style="margin-left:auto;color:#496552;font-size:10px">2h</span></div>
+        <div style="line-height:19px;color:#E6FBEA">Weekly map of Sherwood: 41 flags, 8 confirmed rugs, 2 receipts under three hours of lead. Full thread in the trusted room.</div>
+        <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:#496552"><span style="cursor:pointer" style-hover="color:#00C805">▲ 87</span><span style="cursor:pointer">reply · 8</span><span style="cursor:pointer">share</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+        <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:13px;font-weight:700">Trusted rooms</div>
+        <div style="padding:11px 16px;border-bottom:1px solid #164A2A;font-size:12px;display:flex;justify-content:space-between"><span>the greenwood</span><span style="color:#496552;font-size:10px">2,140 crew</span></div>
+        <div style="padding:11px 16px;border-bottom:1px solid #164A2A;font-size:12px;display:flex;justify-content:space-between"><span>launch scouts</span><span style="color:#496552;font-size:10px">890 crew</span></div>
+        <div style="padding:11px 16px;font-size:12px;display:flex;justify-content:space-between"><span>receipts only ◆</span><span style="color:#496552;font-size:10px">legend tier</span></div>
+      </div>
+      <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;padding:14px 16px;font-size:11px;color:#7FA68A;line-height:18px">House rule: post the receipt or hold your tongue. Calls without evidence are removed by the mods.</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{ sAccount }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Account">
+  <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px">
+    <span style="font-size:24px;font-weight:700">Account</span>
+    <span style="font-size:12px;color:#7FA68A">robin.eth · joined mar 2026</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+    <div style="grid-column:span 3;background:#06140B;border:1px solid #D4A937;border-radius:0;padding:20px;position:relative">
+      <div style="position:absolute;top:-1px;right:16px;background:#D4A937;color:#0A1F12;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:3px 8px;border-radius:0 0 3px 3px">the vault</div>
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:10px">subscription</div>
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px"><span style="font-size:20px;font-weight:700;color:{{ planColor }}">{{ planLabel }}</span><span style="font-size:10px;border:1px solid #D4A937;color:#D4A937;padding:3px 8px;border-radius:3px">◆ founding badge</span></div>
+      <div style="font-size:12px;color:#7FA68A;margin-bottom:18px">status: active · renews aug 09, 2026 · founding price honored</div>
+      <div style="display:flex;gap:10px">
+        <button onClick="{{ rateLimit }}" style="background:#D4A937;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:9px 16px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Change plan</button>
+        <button style="background:transparent;border:1px solid #164A2A;color:#7FA68A;font-size:12px;padding:9px 16px;border-radius:3px;cursor:pointer" style-hover="color:#FF3B30;border-color:#8B1E1A">Hang up the bow · cancel</button>
+      </div>
+    </div>
+    <div style="grid-column:span 3;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:20px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:14px">billing</div>
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">method</span><span>card via Stripe · visa …4021</span></div>
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">alternative</span><span>pay with USDC on chain</span></div>
+      <div style="display:flex;justify-content:space-between;padding:9px 0;font-size:12px"><span style="color:#7FA68A">cycle</span><span>monthly · <a href="#">switch to yearly, save 20% ❯</a></span></div>
+    </div>
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:20px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:14px">connect surfaces</div>
+      <div style="font-size:12px;color:#7FA68A;margin-bottom:6px">telegram link code</div>
+      <div style="background:#06140B;border:1px solid #164A2A;border-radius:3px;padding:10px 12px;font-size:15px;letter-spacing:.24em;text-align:center;margin-bottom:12px">HOOD-7KQ2</div>
+      <div style="font-size:12px;color:#7FA68A;margin-bottom:6px">chrome extension token · shown once</div>
+      <div style="background:#06140B;border:1px solid #164A2A;border-radius:3px;padding:10px 12px;font-size:11px;color:#FFB020;margin-bottom:10px">ext_9f31c0…  copy it now. it will not show again.</div>
+      <div style="font-size:11px;color:#496552">active tokens: 2 · <a href="#" style="color:#FF3B30">revoke all</a></div>
+    </div>
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:20px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:14px">api keys</div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #164A2A;font-size:12px"><span>ht_live_4f2a…9911</span><span style="color:#496552;font-size:10px">created jun 02</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #164A2A;font-size:12px"><span>ht_test_b810…3aa7</span><span style="color:#496552;font-size:10px">created may 11</span></div>
+      <div style="font-size:12px;color:#7FA68A;padding:10px 0 4px">usage this month: 61,204 / 100k</div>
+      <div style="height:6px;background:#06140B;border:1px solid #164A2A"><div style="width:61%;height:6px;background:#00C805"></div></div>
+      <button onClick="{{ rateLimit }}" style="margin-top:14px;width:100%;background:transparent;border:1px solid #164A2A;color:#00C805;font-size:11px;padding:8px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">+ create key</button>
+    </div>
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:20px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:14px">overage credits</div>
+      <div style="font-size:28px;font-weight:700;margin-bottom:2px">12,400</div>
+      <div style="font-size:11px;color:#7FA68A;margin-bottom:16px">requests banked · never expire</div>
+      <button onClick="{{ rateLimit }}" style="width:100%;background:transparent;border:1px solid #164A2A;color:#00C805;font-size:11px;padding:8px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">+ top up credits</button>
+      <div style="font-size:10px;color:#496552;margin-top:12px;line-height:16px">Credits burn only after the monthly quota is spent.</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sDocs }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="API Docs">
+  <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px">
+    <span style="font-size:24px;font-weight:700">API Docs</span>
+    <span style="font-size:12px;color:#7FA68A">one call, a rug score and every signal back. build on the moat.</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:1px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+        <div style="display:flex;border-bottom:1px solid #164A2A">
+          <span style="padding:10px 16px;font-size:11px;border-bottom:2px solid #00C805;color:#E6FBEA;font-weight:700">cURL</span>
+          <span style="padding:10px 16px;font-size:11px;color:#7FA68A;cursor:pointer">JavaScript</span>
+          <span style="padding:10px 16px;font-size:11px;color:#7FA68A;cursor:pointer">Python</span>
+        </div>
+        <pre style="margin:0;padding:16px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:20px;overflow:auto;background:#06140B;color:#E6FBEA">curl -X POST https://api.hood.sh/v1/analyze \
+  -H "Authorization: Bearer ht_live_4f2a…" \
+  -d '{"token": "0x8f3c…a2e1"}'
+
+<span style="color:#496552"># response, 1.4s</span>
+{ "score": 74, "band": "high",
+  "confidence": "medium",
+  "honeypot": false,
+  "bundles": { "pct": 0.18, "funders": 1 },
+  "deployer": { "rugs": 2, "launches": 11 },
+  "lp": { "locked": true, "until": "2026-08-08" } }</pre>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px 18px">
+        <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:10px">authentication</div>
+        <div style="font-size:12px;color:#7FA68A;line-height:19px">Bearer token in the Authorization header. Keys live in <a href="#" onClick="{{ goAccount }}">Account ❯ API keys</a>. Test keys hit a sandboxed index, one day stale.</div>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px 18px">
+        <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:10px">webhooks</div>
+        <div style="font-size:12px;color:#7FA68A;line-height:19px;margin-bottom:10px">Subscribe to score changes, LP pulls, proxy upgrades, and deployer redeploys. Signed with HMAC, retried 5 times with backoff.</div>
+        <pre style="margin:0;padding:12px 14px;background:#06140B;border:1px solid #164A2A;border-radius:3px;font-size:11px;line-height:18px;color:#E6FBEA;overflow:auto">POST your-endpoint
+{ "event": "lp.pulled", "token": "0x…",
+  "score_before": 47, "score_after": 96 }</pre>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+        <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A">errors, rate limits, overage</div>
+        <div style="display:grid;grid-template-columns:.6fr 1.4fr;gap:10px;padding:9px 18px;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#FFB020">429</span><span style="color:#7FA68A">hold the line. quota spent, overage credits burn next</span></div>
+        <div style="display:grid;grid-template-columns:.6fr 1.4fr;gap:10px;padding:9px 18px;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#FF3B30">402</span><span style="color:#7FA68A">no credits left. top up or wait for the cycle</span></div>
+        <div style="display:grid;grid-template-columns:.6fr 1.4fr;gap:10px;padding:9px 18px;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#FF3B30">422</span><span style="color:#7FA68A">not a token we can read. check the address</span></div>
+        <div style="display:grid;grid-template-columns:.6fr 1.4fr;gap:10px;padding:9px 18px;font-size:12px"><span style="color:#FFB020">206</span><span style="color:#7FA68A">partial analysis. some modules timed out, retry for full</span></div>
+      </div>
+    </div>
+    <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+      <div style="background:#06140B;padding:8px 14px;border-bottom:1px solid #164A2A;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A">endpoint reference · 21</div>
+      <sc-for list="{{ endpoints }}" as="e" hint-placeholder-count="21">
+        <div style="display:flex;justify-content:space-between;gap:12px;padding:9px 18px;border-bottom:1px solid #164A2A;font-size:11px" style-hover="background:#0A1F12">
+          <span style="color:#00C805;white-space:nowrap">{{ e.ep }}</span><span style="color:#496552;text-align:right">{{ e.d }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sKit }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="The Kit">
+  <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px">
+    <span style="font-size:24px;font-weight:700">The Kit</span>
+    <span style="font-size:12px;color:#7FA68A">the component set and every state the product can be in.</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#496552;margin-bottom:12px">risk chips + label tags</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#00C805;color:#0A1F12">12 · Low</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#FFB020;color:#0A1F12">38 · Some risk</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#FF3B30;color:#0A1F12">66 · High</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#8B1E1A;color:#E6FBEA">88 · Extreme</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#8B1E1A;color:#E6FBEA">Rugged</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+        <span style="font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid #FF3B30;color:#FF3B30">sniper</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid #FFB020;color:#FFB020">insider</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid #7FA68A;color:#7FA68A">fresh</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid #00C805;color:#00C805">smart money</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:3px;background:#8B1E1A;color:#E6FBEA">repeat offender</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid #FFB020;color:#FFB020">kol</span>
+      </div>
+    </div>
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#496552;margin-bottom:12px">evidence rows</div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">check name</span><span style="color:#00C805">✓ pass with detail</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">check name</span><span style="color:#FFB020">! caution with detail</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px"><span style="color:#7FA68A">check name</span><span style="color:#FF3B30">✕ fail with detail</span></div>
+    </div>
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#496552;margin-bottom:12px">command bar + vault device</div>
+      <div style="display:flex;align-items:center;gap:10px;background:#06140B;border:1px solid #164A2A;border-radius:3px;padding:9px 12px;font-size:12px;margin-bottom:12px"><span style="color:#D4A937;font-weight:700">❯</span><span style="color:#496552">scan a token or wallet</span><span style="display:inline-block;width:7px;height:13px;background:#00C805;animation:blink 1.1s steps(1) infinite"></span></div>
+      <button onClick="{{ goAccount }}" style="width:100%;background:#D4A937;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:9px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">◆ Open the vault · the only gold</button>
+    </div>
+    <div style="grid-column:span 3;background:#06140B;border:1px solid #164A2A;border-radius:0;padding:28px;text-align:center;position:relative;overflow:hidden">
+      <svg width="360" height="240" viewBox="0 0 360 240" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);opacity:.6;pointer-events:none"><ellipse cx="180" cy="120" rx="50" ry="36" fill="none" stroke="#164A2A" stroke-width="1"></ellipse><ellipse cx="180" cy="120" rx="95" ry="70" fill="none" stroke="#164A2A" stroke-width="1"></ellipse><ellipse cx="180" cy="120" rx="145" ry="106" fill="none" stroke="#164A2A" stroke-width="1"></ellipse></svg>
+      <div style="position:relative">
+        <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#496552;margin-bottom:16px">loading state</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">Scouting Sherwood<span style="display:inline-block;width:8px;height:14px;background:#00C805;animation:blink .8s steps(1) infinite;margin-left:6px;vertical-align:middle"></span></div>
+        <div style="font-size:11px;color:#7FA68A">31 modules riding. first evidence lands in about a second.</div>
+      </div>
+    </div>
+    <div style="grid-column:span 3;background:#06140B;border:1px solid #164A2A;border-radius:0;padding:28px;text-align:center">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#496552;margin-bottom:16px">empty state</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">The Quiver is empty.</div>
+      <div style="font-size:11px;color:#7FA68A;margin-bottom:14px">Add your first mark.</div>
+      <button onClick="{{ addQuiver }}" style="background:transparent;border:1px solid #164A2A;color:#00C805;font-size:11px;padding:8px 14px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">+ add a mark</button>
+    </div>
+    <div style="grid-column:span 2;background:#3a2a08;border:1px solid #FFB020;border-radius:0;padding:16px;font-size:12px;color:#FFB020;line-height:19px">! degraded analysis banner. Partial analysis. Two modules timed out. Scores may shift.</div>
+    <div style="grid-column:span 2;background:#8B1E1A;border:1px solid #FF3B30;border-radius:0;padding:16px;font-size:12px;color:#E6FBEA;line-height:19px">✕ error state. The trail went cold mid scan. Nothing was charged. <span style="text-decoration:underline;cursor:pointer">Run it again.</span></div>
+    <div style="grid-column:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px;font-size:12px;color:#7FA68A;line-height:19px"><span style="color:#E6FBEA;font-weight:700">rate limited.</span> Hold the line. Too many arrows at once. Quota resets in 40s. <button onClick="{{ rateLimit }}" style="background:transparent;border:none;color:#00C805;cursor:pointer;font-size:12px;padding:0;text-decoration:underline">demo toast</button></div>
+    <div style="grid-column:span 3;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#496552;margin-bottom:12px">risk aware swap confirm</div>
+      <div style="font-size:12px;color:#7FA68A;line-height:19px;margin-bottom:12px">The Swap button on an Extreme token opens a warning first. Try it:</div>
+      <button onClick="{{ openSwap }}" style="background:#D4A937;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:9px 16px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Swap into $NIGHTJAR</button>
+    </div>
+    <div style="grid-column:span 3;background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:16px">
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#496552;margin-bottom:12px">toast strings, outlaw voice</div>
+      <div style="font-size:12px;color:#7FA68A;line-height:22px">"Alert set. We ping you when it hits."<br>"Alert: CCI crossed your line."<br>"Sheriff Watch caught a heavy purse moving."<br>"No tracks in this part of the forest."<br>"Legend tools sit behind the vault door."</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+<!--APP-->
+    </main>
+    <div data-screen-label="Status line" style="position:fixed;left:204px;right:0;bottom:0;z-index:45;height:30px;background:#06140B;border-top:1px solid #164A2A;display:flex;align-items:center;gap:16px;padding:0 14px;font-size:11px">
+      <span style="display:flex;align-items:center;gap:6px;color:#00C805;font-weight:700"><span style="width:7px;height:7px;background:#00C805;border-radius:50%"></span>LIVE</span>
+      <span style="color:#7FA68A">block {{ blockH }}</span>
+      <span style="color:{{ latColor }}">rpc {{ lat }}</span>
+      <span style="color:#164A2A">│</span>
+      <span style="color:#7FA68A">{{ screenPath }}</span>
+      <span style="margin-left:auto;color:#496552;letter-spacing:.02em">type ? for commands</span>
+    </div>
+  </div>
+  <sc-if value="{{ friarOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(6,20,11,.7);z-index:90" onClick="{{ closeFriar }}"></div>
+  <div data-screen-label="Friar Tuck" style="position:fixed;top:0;right:0;bottom:0;width:380px;background:#06140B;border-left:1px solid #164A2A;z-index:91;display:flex;flex-direction:column">
+    <div style="padding:16px 20px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:10px">
+      <span style="color:#D4A937;font-size:16px">✒</span>
+      <div><div style="font-size:14px;font-weight:700">Friar Tuck <span style="font-size:10px;color:#496552;font-weight:400;border:1px solid #164A2A;padding:1px 6px;border-radius:3px">Assistant</span></div><div style="font-size:10px;color:#7FA68A">reads the trail. never the future.</div></div>
+      <button onClick="{{ closeFriar }}" style="margin-left:auto;background:transparent;border:1px solid #164A2A;color:#7FA68A;font-size:12px;padding:5px 10px;border-radius:3px;cursor:pointer" style-hover="color:#E6FBEA">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+      <sc-for list="{{ friarMsgs }}" as="m" hint-placeholder-count="1">
+        <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;padding:12px 14px;font-size:12px;line-height:19px;color:#E6FBEA"><span style="display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:6px">{{ m.who }}</span>{{ m.text }}</div>
+      </sc-for>
+      <div style="font-size:10px;color:#496552;line-height:16px">Grounded in the current scan only. No price calls, no promises. Not financial advice. DYOR.</div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid #164A2A;display:flex;gap:8px">
+      <input value="{{ friarQ }}" onChange="{{ setFriarQ }}" onKeyDown="{{ onFriarKey }}" placeholder="ask about this scan" style="flex:1;background:#0A1F12;border:1px solid #164A2A;color:#E6FBEA;font-size:12px;padding:10px 12px;border-radius:3px;outline:none" style-focus="border-color:#D4A937">
+      <button onClick="{{ askFriar }}" style="background:#D4A937;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:0 14px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">❯</button>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ swapOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(6,20,11,.8);z-index:95;display:flex;align-items:center;justify-content:center" onClick="{{ closeSwap }}"></div>
+  <div data-screen-label="Risk aware swap confirm" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:420px;background:#06140B;border:1px solid #FF3B30;border-radius:0;z-index:96;overflow:hidden">
+    <div style="background:#8B1E1A;padding:14px 20px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:14px;color:#E6FBEA">!</span>
+      <span style="font-size:13px;font-weight:700;color:#E6FBEA">Hold your fire. This mark reads High risk.</span>
+    </div>
+    <div style="padding:20px">
+      <div style="font-size:12px;color:#7FA68A;line-height:19px;margin-bottom:16px">You are about to swap into <span style="color:#E6FBEA;font-weight:700">$NIGHTJAR</span>, scored <span style="color:#FF3B30;font-weight:700">74, High</span>. The deployer has two confirmed rugs. Mint is reachable. Taxes are mutable.</div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">swap</span><span>2.5 SOL → $NIGHTJAR</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #164A2A;font-size:12px"><span style="color:#7FA68A">est. price impact</span><span style="color:#FFB020">3.1%</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px"><span style="color:#7FA68A">max safe exit today</span><span>$4,860</span></div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button onClick="{{ closeSwap }}" style="flex:1;background:#00C805;color:#0A1F12;border:none;border-radius:3px;font-size:12px;font-weight:700;padding:11px;cursor:pointer">Stand down</button>
+        <button onClick="{{ confirmSwap }}" style="flex:1;background:transparent;border:1px solid #8B1E1A;color:#FF3B30;font-size:12px;padding:11px;border-radius:3px;cursor:pointer" style-hover="background:#8B1E1A;color:#E6FBEA">Swap anyway</button>
+      </div>
+      <div style="font-size:10px;color:#496552;margin-top:14px;text-align:center">Not financial advice. DYOR.</div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99;background:#0D2A19;border:1px solid #00C805;border-radius:3px;padding:11px 18px;font-size:12px;color:#E6FBEA;display:flex;align-items:center;gap:10px">
+    <span style="color:#00C805">➳</span>{{ toastMsg }}
+  </div>
+</sc-if>
+</div>
+
+
+<sc-if value="{{ prevOpen }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Token preview card" onClick="{{ goScan }}" onMouseLeave="{{ pvOff }}" style="{{ prevPos }};width:370px;background:#06140B;border:1px solid #164A2A;box-shadow:0 14px 44px rgba(0,0,0,.55);cursor:pointer;z-index:96">
+    <div style="padding:12px 16px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:10px">
+      <span style="font-size:15px;font-weight:700">{{ prevT }}</span>
+      <span style="font-size:11px;color:#7FA68A">{{ prevN }}</span>
+      <span style="margin-left:auto;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ prevBg }};color:{{ prevFg }}">{{ prevSc }} · {{ prevBand }}</span>
+    </div>
+    <div style="padding:10px 16px;border-bottom:1px solid #164A2A;font-size:12px;color:#E6FBEA;line-height:18px">{{ prevWhy }} <span style="color:#496552">confidence {{ prevConf }}</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:#164A2A;border-bottom:1px solid #164A2A">
+      <div style="background:#06140B;padding:9px 12px"><div style="font-size:13px;font-weight:700">{{ prevMc }}</div><div style="font-size:9px;color:#7FA68A">mcap</div></div>
+      <div style="background:#06140B;padding:9px 12px"><div style="font-size:13px;font-weight:700">{{ prevAge }}</div><div style="font-size:9px;color:#7FA68A">age</div></div>
+      <div style="background:#06140B;padding:9px 12px"><div style="font-size:13px;font-weight:700">{{ prevLiq }}</div><div style="font-size:9px;color:#7FA68A">liquidity</div></div>
+      <div style="background:#06140B;padding:9px 12px"><div style="font-size:13px;font-weight:700">{{ prevScans }}</div><div style="font-size:9px;color:#7FA68A">scans</div></div>
+    </div>
+    <div style="padding:10px 16px;border-bottom:1px solid #164A2A">
+      <div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#496552;margin-bottom:6px">top score factors</div>
+      <sc-for list="{{ prevFactors }}" as="f" hint-placeholder-count="3">
+        <div style="display:flex;justify-content:space-between;gap:10px;font-size:11px;padding:2px 0"><span style="color:#7FA68A">{{ f.f }}</span><span style="color:{{ f.c }};font-weight:700">{{ f.p }}</span></div>
+      </sc-for>
+    </div>
+    <div style="padding:10px 16px;font-size:11px;color:#7FA68A;line-height:17px">
+      <div><span style="color:{{ prevHpc }}">hp {{ prevHp }}</span> · lp {{ prevLpLine }}</div>
+      <div>{{ prevHolders }}</div>
+    </div>
+    <div style="padding:8px 16px;border-top:1px solid #164A2A;font-size:10px;color:#496552">click opens the full scan</div>
+  </div>
+</sc-if>
+<sc-if value="{{ paletteOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(6,20,11,.75);z-index:97" onClick="{{ closePalette }}"></div>
+  <div data-screen-label="Command palette" style="position:fixed;top:14vh;left:50%;transform:translateX(-50%);width:580px;background:#06140B;border:1px solid #164A2A;z-index:98">
+    <div style="padding:10px 16px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:10px;font-size:12px"><span style="color:#D4A937;font-weight:700">❯</span><span style="color:#E6FBEA;font-weight:700">command palette</span><span style="margin-left:auto;color:#496552">? summons · esc closes · click runs</span></div>
+    <sc-for list="{{ paletteCmds }}" as="c" hint-placeholder-count="13">
+      <div onClick="{{ c.run }}" style="display:flex;gap:16px;padding:8px 16px;font-size:12px;cursor:pointer;border-bottom:1px solid #0D2A19" style-hover="background:#0D2A19">
+        <span style="color:#00C805;width:200px;flex:none">{{ c.u }}</span><span style="color:#7FA68A">{{ c.d }}</span>
+      </div>
+    </sc-for>
+  </div>
+</sc-if></x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;plan&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;Outlaw&quot;, &quot;Legend of Sherwood&quot;], &quot;default&quot;: &quot;Outlaw&quot;, &quot;section&quot;: &quot;Account&quot;, &quot;tsType&quot;: &quot;string&quot;}, &quot;degradedBanner&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;section&quot;: &quot;Scan&quot;, &quot;tsType&quot;: &quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = {
+    screen: 'hideout', rugTab: 'feed', tf: '15m', survPad: 'all', tab: 'security', cmd: '', sell: 25, lb: 60, tt: 70, magic: false,
+    flagged: false, preset: 'my snipes', period: '7d', friarOpen: false, swapOpen: false,
+    pulseTab: 'new', pulseSort: '',
+    prev: '', px: 0, py: 0,
+    block: 8412096, lat: 42, hist: [], histIdx: -1, palette: false, scanning: false, scanLog: [],
+    toast: '', arrowTrigger: 'LP pull', arrowIn: true, arrowTg: true, arrowWh: false,
+    friarQ: '', friarMsgs: [
+      { who: 'tuck', text: 'Evening. I read the $NIGHTJAR scan. Ask me anything about it. I will not tell you where the price goes. Nobody knows that, least of all a friar.' }
+    ]
+  };
+  go(id) { this.setState({ screen: id }); window.scrollTo(0, 0); }
+  componentDidMount() {
+    const h = (location.hash || '').replace('#', '');
+    const legacy = { rugdb: ['rugs', 'db'], rugfeed: ['rugs', 'feed'], receipts: ['rugs', 'receipts'], groups: ['sheriff'] };
+    if (legacy[h]) this.setState({ screen: legacy[h][0], rugTab: legacy[h][1] || 'feed' });
+    else if (h && ['hideout', 'scan', 'pulse', 'quiver', 'longbow', 'sheriff', 'heist', 'wallet', 'deployer', 'rugs', 'survival', 'leaderboard', 'rapsheet', 'merrymen', 'compare', 'account', 'docs', 'kit'].includes(h)) this.setState({ screen: h });
+    this._bt = setInterval(() => this.setState({ block: this.state.block + 1, lat: 36 + Math.round(Math.random() * 18) }), 2400);
+    this._kd = (e) => {
+      const t = (e.target.tagName || '').toLowerCase();
+      if (t === 'input' || t === 'select' || t === 'textarea') return;
+      if (e.key === '?') { e.preventDefault(); this.setState({ palette: !this.state.palette }); }
+      else if (e.key === 'Escape') this.setState({ palette: false, swapOpen: false, friarOpen: false, prev: '' });
+      else if (e.key === 'a') this.toast('Alert set. We ping you when it hits.');
+      else if (e.key === 'c') this.go('compare');
+      else if (e.key === 's') this.setState({ swapOpen: true });
+      else if (e.key === 'h') this.go('hideout');
+      else if (e.key === 'b') this.go('pulse');
+      else if (e.key === 'q') this.go('quiver');
+      else if (e.key === 'w') this.go('sheriff');
+      else if (e.key === 'e') this.go('heist');
+      else if (e.key === 'r') this.go('rugs');
+      else if (e.key === 'v') this.go('survival');
+      else if (e.key === 'l') this.go('leaderboard');
+      else if (e.key === 'm') this.go('merrymen');
+    };
+    window.addEventListener('keydown', this._kd);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this._kd); clearInterval(this._bt); clearInterval(this._sc); clearTimeout(this._tt); clearInterval(this._ttI); }
+  CMDS = [
+    ['scan <address>', 'run the full 31 module scan', 'scan 0x8f3c…a2e1'],
+    ['watch <address>', 'add a mark to the quiver', 'watch 0x8f3c…a2e1'],
+    ['sheriff <address>', 'whale tracker on a wallet', 'sheriff'],
+    ['deployer <address>', 'launch history and survival', 'deployer'],
+    ['wallet <address>', 'holdings, spoils, risk', 'wallet'],
+    ['heist', 'the smart money feed', 'heist'],
+    ['pulse', 'the bounty board', 'pulse'],
+    ['quiver', 'your watchlist and alerts', 'quiver'],
+    ['compare <a> <b>', 'two marks side by side', 'compare'],
+    ['longbow', 'exit math and quick snipe check', 'longbow'],
+    ['rap <address>', 'the record on a wallet', 'rap'],
+    ['rugs', 'feed, database, receipts', 'rugs'],
+    ['docs', 'api reference', 'docs'],
+    ['help', 'this list', 'help']
+  ];
+  runCommand(raw) {
+    const c = (raw || '').trim();
+    if (!c) return;
+    const w = c.split(/\s+/)[0].toLowerCase();
+    this.setState({ hist: [c].concat(this.state.hist).slice(0, 20), histIdx: -1, cmd: '', palette: false });
+    const map = { watch: 'quiver', sheriff: 'sheriff', deployer: 'deployer', wallet: 'wallet', rap: 'rapsheet', heist: 'heist', pulse: 'pulse', quiver: 'quiver', compare: 'compare', longbow: 'longbow', docs: 'docs', account: 'account', hideout: 'hideout', survival: 'survival', leaderboard: 'leaderboard', merrymen: 'merrymen', kit: 'kit', groups: 'sheriff' };
+    if (w === 'rugs') { this.setState({ screen: 'rugs', rugTab: 'feed' }); window.scrollTo(0, 0); return; }
+    if (w === 'receipts') { this.setState({ screen: 'rugs', rugTab: 'receipts' }); window.scrollTo(0, 0); return; }
+    if (w === 'scan' || /^0x[0-9a-f…]/i.test(w)) { this.streamScan(); return; }
+    if (w === 'help') { this.setState({ palette: true }); return; }
+    if (w === 'watch') { this.go('quiver'); this.toast('Marked. It rides in the Quiver.'); return; }
+    if (map[w]) { this.go(map[w]); return; }
+    this.toast('No such command. Type help.');
+  }
+  streamScan() {
+    this.setState({ screen: 'scan', scanning: true, scanLog: [] });
+    window.scrollTo(0, 0);
+    clearInterval(this._sc);
+    const mk = (t, m, tag, msg) => ({ t, m, tag, msg, c: tag.includes('OK') ? '#00C805' : tag.includes('FAIL') ? '#FF3B30' : (tag.includes('WARN') || tag.includes('TIME')) ? '#FFB020' : '#7FA68A' });
+    const lines = [
+      mk('00.00', 'dispatch', '  ..', 'scouting sherwood · 31 modules riding'),
+      mk('00.11', 'honeypot_sim', '[ OK ]', 'sell executed · 9.8% total tax'),
+      mk('00.19', 'hidden_mint', '[FAIL]', 'mint reachable by owner'),
+      mk('00.24', 'mutable_tax', '[FAIL]', 'setTax callable · current 4/6, no cap'),
+      mk('00.31', 'proxy_check', '[FAIL]', 'upgradeable proxy live · alert armed'),
+      mk('00.38', 'ownership', '[WARN]', 'not renounced · owner is deployer'),
+      mk('00.47', 'holders', '[WARN]', 'top10 41% · sybil adjusted 57%'),
+      mk('00.55', 'bundles', '[FAIL]', '18% of supply · one funder · block 0'),
+      mk('00.63', 'snipers', '[WARN]', '4 wallets · 2 sold all'),
+      mk('00.71', 'lp_lock', '[ OK ]', 'locked 30d via archery.fun'),
+      mk('00.84', 'deployer_rep', '[FAIL]', '2 confirmed rugs of 11 launches'),
+      mk('00.92', 'funding_origin', '[WARN]', 'gas traced to a no kyc exchange'),
+      mk('01.05', 'social', '[WARN]', 'x is 4 days old · no site'),
+      mk('01.19', 'cross_funding', '[TIME]', 'module timed out · retry queued'),
+      mk('01.40', 'verdict', ' ❯❯', 'score 74 · high risk · confidence medium')
+    ];
+    let i = 0;
+    this._sc = setInterval(() => {
+      i++;
+      this.setState({ scanLog: lines.slice(0, i) });
+      if (i >= lines.length) { clearInterval(this._sc); setTimeout(() => this.setState({ scanning: false }), 900); }
+    }, 130);
+  }
+  toast(t) { this.setState({ toast: t }); clearTimeout(this._tt); this._tt = setTimeout(() => this.setState({ toast: '' }), 3200); }
+  renderVals() {
+    const s = this.state;
+    const legend = (this.props.plan ?? 'Outlaw') === 'Legend of Sherwood';
+    const navStyle = (on) => 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:3px;font-size:12.5px;' + (on ? 'background:#0D2A19;color:#00C805;border-left:2px solid #00C805;padding-left:8px' : 'color:#7FA68A;border-left:2px solid transparent;padding-left:8px');
+    const nav = (arr) => arr.map(([id, label, key, sub]) => ({ label, key, sub: sub || '', style: navStyle(s.screen === id), go: (e) => { e.preventDefault(); this.go(id); } }));
+    const tabStyle = (on, lock) => 'padding:10px 14px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid ' + (on ? '#00C805;color:#E6FBEA;font-weight:700' : 'transparent;color:' + (lock ? '#496552' : '#7FA68A'));
+    const tabs = [['security', 'Security'], ['holders', 'Holders'], ['insiders', 'Insiders ◆'], ['launch', 'Launch'], ['money', 'Money flow ◆'], ['liquidity', 'Liquidity'], ['creator', 'Creator'], ['social', 'Social']];
+    const band = (sc) => sc >= 75 ? ['Extreme', '#E6FBEA', '#8B1E1A'] : sc >= 50 ? ['High', '#0A1F12', '#FF3B30'] : sc >= 25 ? ['Some risk', '#0A1F12', '#FFB020'] : ['Low', '#0A1F12', '#00C805'];
+    const chip = (sc) => { const b = band(sc); return { sc, band: b[0], fg: b[1], bg: b[2] }; };
+    const pc = (t, n, age, liq, sc, hp, dep, bu, fr, top, lp, soc, flagged) => Object.assign({ t, n, age, liq, hp, hpc: hp === 'clear' ? '#00C805' : '#FF3B30', dep, bu, fr, top, lp, soc, flagged: !!flagged }, chip(sc));
+
+    // canonical token intelligence store. every surface (chip, row, preview, scan) reads the same record.
+    const TOKENS = {};
+    const rng = (seed) => () => (seed = (seed * 16807 + 12345) % 2147483647) / 2147483647;
+    const T = (t, n, sc, hp, top, lp, mc, age, liq, scans, seen, flags, why, conf, factors, holdersLine, lpLine) => {
+      const sr = rng(t.charCodeAt(1) * 131 + t.length * 17 + sc * 7);
+      let sv = 9; const spts = [];
+      for (let i = 0; i < 16; i++) { sv = Math.min(16.5, Math.max(1.5, sv + (sr() - (sc >= 50 ? 0.34 : 0.66)) * 4)); spts.push(((i * 68) / 15).toFixed(1) + ',' + sv.toFixed(1)); }
+      TOKENS[t] = Object.assign({ t, n, hp, hpc: hp === 'clear' ? '#00C805' : '#FF3B30', top, lp, mc, age, liq, scans, seen, flags, why, conf, factors, holdersLine, lpLine, spark: spts.join(' '), sparkCol: sv > 9 ? '#FF3B30' : '#00C805' }, chip(sc));
+    };
+    T('$NIGHTJAR', 'Nightjar', 74, 'clear', '57%', 'locked 30d', '$2.1M', '3d', '$184k', '1,204', 'now', 'mint open · mutable tax · proxy', 'Sells fine today. The deployer and the bundle are the problem.', 'medium', [['deployer: 2 rugs of 11 launches', '+22', '#FF3B30'], ['bundled supply 18%, one funder', '+18', '#FF3B30'], ['LP locked 30d', '-8', '#00C805']], 'top10 57% sybil adjusted · 1,208 holders', 'locked 30d via archery.fun');
+    T('$NOCK', 'Full Nock', 12, 'clear', '16%', 'burned', '$8.4M', '3d', '$210k', '2,412', '18s', 'none open', 'Clean contract, clean crew. Watch the curve, not the chart.', 'high', [['LP burned', '-14', '#00C805'], ['deployer clean 9 of 9', '-10', '#00C805'], ['holders well spread', '-8', '#00C805']], 'top10 16% sybil adjusted · 4,812 holders', 'burned at graduation');
+    T('$SCARLET', 'Will Scarlet', 31, 'clear', '26%', 'locked 30d', '$3.2M', '5h', '$156k', '644', '1m', 'dev holds 6% · young socials', 'Fair contract. The dev wallet is the thing to watch.', 'high', [['dev wallet holds 6%', '+12', '#FFB020'], ['x account 9 days old', '+8', '#FFB020'], ['LP locked 30d', '-8', '#00C805']], 'top10 26% sybil adjusted · 2,104 holders', 'locked 30d via archery.fun');
+    T('$SHRF', 'Sheriffcoin', 66, 'clear', '52%', 'unlocked', '$1.1M', '7h', '$98k', '903', '4m', 'whale exit · unlocked LP · 3 rug deployer', 'A whale walked out the front door and the LP is unlocked.', 'medium', [['deployer: 3 confirmed rugs', '+24', '#FF3B30'], ['LP unlocked', '+16', '#FF3B30'], ['top holder sold 40%', '+12', '#FF3B30']], 'top10 52% sybil adjusted · 1,540 holders', 'unlocked · owner is dev');
+    T('$MARIAN', 'Maid Marian', 18, 'clear', '19%', 'locked', '$92k', '4m', '$38k', '118', '9m', 'young · thin liquidity', 'Nothing wrong yet. It is four minutes old, act like it.', 'low', [['token age under 1h', '+10', '#FFB020'], ['deployer clean 6 of 6', '-8', '#00C805'], ['LP locked', '-6', '#00C805']], 'top10 19% · 312 holders', 'locked via archery.fun');
+    T('$GALLOWS', 'Gallows Pole', 83, 'trap', '64%', 'unlocked', '$310k', '11m', '$61k', '421', '3m', 'honeypot · whitelist sells · 2 rug deployer', 'Sells revert unless you are on the list. You are not on the list.', 'high', [['honeypot: sells revert', '+30', '#FF3B30'], ['bundled supply 31%', '+18', '#FF3B30'], ['deployer: 2 confirmed rugs', '+16', '#FF3B30']], 'top10 64% sybil adjusted · 488 holders', 'unlocked · one wallet holds 71% of LP');
+    T('$TITHE', 'Tithe Collector', 47, 'clear', '38%', 'locked 7d', '$210k', '26m', '$44k', '232', '22m', 'LP unlock inside 24h', 'Fine until tomorrow. The LP lock runs out in 24 hours.', 'medium', [['LP unlock inside 24h', '+16', '#FFB020'], ['deployer unknown', '+8', '#FFB020'], ['no honeypot behavior', '-6', '#00C805']], 'top10 38% · 720 holders', 'locked 7d, expiring');
+    T('$OUTLAWX', 'Outlaw Exchange', 9, 'clear', '11%', 'burned', '$14M', '3d', '$1.2M', '3,208', '1h', 'none open', 'As clean as this chain gets. Deep pool, burned LP, spread holders.', 'high', [['LP burned', '-14', '#00C805'], ['deployer clean 12 of 12', '-12', '#00C805'], ['liquidity depth', '-8', '#00C805']], 'top10 11% · 9,340 holders', 'burned at graduation');
+    T('$FLETCH', 'Fletcher', 28, 'clear', '23%', 'locked 90d', '$2.2M', '6d', '$480k', '512', '3h', 'deployer unknown', 'Solid posture. The deployer has no history either way.', 'medium', [['deployer unknown', '+10', '#FFB020'], ['LP locked 90d', '-10', '#00C805'], ['holders well spread', '-6', '#00C805']], 'top10 23% · 3,102 holders', 'locked 90d via quiverpad');
+    T('$QUARREL', 'Crossbow Quarrel', 39, 'clear', '31%', 'locked 30d', '$960k', '8d', '$220k', '388', '5h', '1 dead prior launch', 'Middle of the road. One dead launch behind the deployer.', 'medium', [['deployer: 1 dead launch', '+12', '#FFB020'], ['top10 31%', '+8', '#FFB020'], ['LP locked 30d', '-8', '#00C805']], 'top10 31% · 1,240 holders', 'locked 30d');
+    T('$CURFEW', 'Curfew Bell', 96, 'trap', '71%', 'pulled', '—', '9d', '$0', '1,412', 'jun 30', 'rugged · LP pulled · -98%', 'Rugged jun 30. Flagged extreme six hours before the pull.', 'high', [['LP pulled, confirmed rug', '+40', '#FF3B30'], ['insider network, one funder', '+22', '#FF3B30'], ['honeypot in final hours', '+18', '#FF3B30']], 'top10 71% at collapse · 61 wallets known', 'pulled · receipt #9314');
+    T('$TOLLGATE', 'Tollgate', 79, 'trap', '66%', 'pulled', '—', '28d', '$0', '512', 'jun 12', 'rugged · LP pulled', 'Rugged jun 12. The bundle sold as one wallet, because it was.', 'high', [['bundle: 14 wallets, one funder', '+26', '#FF3B30'], ['LP pulled', '+24', '#FF3B30'], ['fresh wallet swarm', '+12', '#FF3B30']], 'top10 66% at collapse · 38 wallets known', 'pulled · receipt #8907');
+    T('$ABBOT', 'The Abbot', 81, 'trap', '69%', 'pulled', '—', '58d', '$0', '377', 'may 13', 'rugged · cross funded dev', 'Rugged may 13. Dev and insiders shared a funding wallet.', 'high', [['cross funded with dev wallet', '+26', '#FF3B30'], ['LP pulled', '+24', '#FF3B30'], ['mutable taxes used', '+14', '#FF3B30']], 'top10 69% at collapse · 44 wallets known', 'pulled · receipt #8211');
+    T('$VESPERS', 'Vespers', 77, 'clear', '61%', 'pulled', '—', '21d', '$0', '298', 'jun 20', 'rugged · proxy upgraded post launch', 'Rugged jun 20. The proxy rewrote the taxes after launch.', 'high', [['proxy upgraded post launch', '+26', '#FF3B30'], ['taxes rewritten to 90%', '+22', '#FF3B30'], ['LP pulled', '+20', '#FF3B30']], 'top10 61% at collapse · 29 wallets known', 'pulled · receipt #9102');
+    T('$FRIARFEE', 'Friar Fee', 91, 'trap', '74%', 'unlocked', '$45k', '2h', '$12k', '96', '2h', 'scam template match 94%', 'Byte for byte a known scam template. T 114, seen 61 times.', 'high', [['template match 94% (T 114)', '+34', '#FF3B30'], ['honeypot: sells revert', '+30', '#FF3B30'], ['LP unlocked', '+12', '#FF3B30']], 'top10 74% · 118 holders', 'unlocked');
+    T('$PILGRIM', 'Pilgrim', 54, 'clear', '44%', 'locked', '$80k', '40d', '$2k', '154', 'jun 01', 'liquidity nearly gone', 'Not rugged, just dying. Two thousand dollars of pool left.', 'medium', [['liquidity $2k', '+20', '#FF3B30'], ['holders leaving', '+12', '#FFB020'], ['no contract flags', '-6', '#00C805']], 'top10 44% · 402 holders', 'locked, pool drained');
+    Object.keys(TOKENS).forEach(k => { TOKENS[k].lg = k.charAt(1); });
+    const mkt = { '$NIGHTJAR': ['$310k', '+22.4%'], '$NOCK': ['$1.4M', '+12.4%'], '$SCARLET': ['$620k', '+4.1%'], '$SHRF': ['$410k', '-18.2%'], '$MARIAN': ['$96k', '+31.0%'], '$GALLOWS': ['$150k', '-42.6%'], '$TITHE': ['$88k', '-3.8%'], '$OUTLAWX': ['$2.8M', '+2.2%'], '$FLETCH': ['$540k', '+6.8%'], '$QUARREL': ['$180k', '-1.4%'], '$FRIARFEE': ['$9k', '-71.2%'], '$CURFEW': ['$0', '-98%'], '$TOLLGATE': ['$0', '-96%'], '$ABBOT': ['$0', '-99%'], '$VESPERS': ['$0', '-97%'], '$PILGRIM': ['$1k', '-0.6%'] };
+    Object.keys(mkt).forEach(k => { if (TOKENS[k]) { TOKENS[k].vol = mkt[k][0]; TOKENS[k].chg = mkt[k][1]; TOKENS[k].cc = mkt[k][1].charAt(0) === '-' ? '#FF3B30' : '#00C805'; } });
+    const pvOn = (t) => (e) => this.setState({ prev: t, px: e.clientX, py: e.clientY });
+    const pvOff = () => this.setState({ prev: '' });
+    const withTok = (arr) => arr.map(x => Object.assign({}, TOKENS[x.t] || {}, x, { pv: pvOn(x.t) }));
+
+    // exit liquidity calc (scan tab): position $12,400 in $NIGHTJAR, pool $184k
+    const sellUsd = Math.round(12400 * s.sell / 100);
+    const impact = +(Math.pow(s.sell / 100, 1.4) * 26).toFixed(1);
+    const recv = Math.round(sellUsd * (1 - impact / 100));
+    // longbow calc: SOL input
+    const lbImpact = +(Math.pow(s.lb / 500, 1.3) * 42).toFixed(1);
+    const lbRecv = +(s.lb * (1 - lbImpact / 100)).toFixed(1);
+    const ttDay = Math.max(1, Math.round(s.tt / 100 * 4));
+
+    const heist = [
+      { w: 'wintermute-ish.eth', tag: 'smart money', tc: '#00C805', act: 'bought', ac: '#00C805', amt: '$41,200', t: '$NOCK', time: '18s' },
+      { w: '0x7ba2…e1c9', tag: 'smart money', tc: '#00C805', act: 'bought', ac: '#00C805', amt: '$18,750', t: '$SCARLET', time: '1m' },
+      { w: 'quietpurse.eth', tag: 'kol', tc: '#FFB020', act: 'sold', ac: '#FF3B30', amt: '$96,000', t: '$SHRF', time: '4m' },
+      { w: '0x22fd…09b1', tag: 'smart money', tc: '#00C805', act: 'bought', ac: '#00C805', amt: '$7,300', t: '$MARIAN', time: '9m' },
+      { w: '0x91be…44aa', tag: 'repeat offender', tc: '#FF3B30', act: 'sold', ac: '#FF3B30', amt: '$52,400', t: '$GALLOWS', time: '12m' }
+    ];
+    const arrowsStruck = [
+      { t: '$SHRF', msg: 'Alert: whale dump. quietpurse.eth sold $96k.', time: '4m ago', c: '#FF3B30' },
+      { t: '$TITHE', msg: 'Alert: LP unlock in 24h.', time: '2h ago', c: '#FFB020' },
+      { t: '$NOCK', msg: 'Alert: CCI crossed your line.', time: '6h ago', c: '#00C805' }
+    ];
+    const quiver = [
+      Object.assign({ t: '$NOCK', n: 'Full Nock', px: '$0.0184', chg: '+12.4%', cc: '#00C805', note: 'score fell 3 overnight. healthy.' }, chip(12)),
+      Object.assign({ t: '$SCARLET', n: 'Will Scarlet', px: '$0.0031', chg: '+4.1%', cc: '#00C805', note: 'dev wallet quiet 5 days.' }, chip(31)),
+      Object.assign({ t: '$SHRF', n: 'Sheriffcoin', px: '$0.0009', chg: '-18.2%', cc: '#FF3B30', note: 'holding 18% below the dump.' }, chip(66)),
+      Object.assign({ t: '$MARIAN', n: 'Maid Marian', px: '$0.0002', chg: '+2.0%', cc: '#00C805', note: 'young. watch the curve.' }, chip(18)),
+      Object.assign({ t: '$TITHE', n: 'Tithe Collector', px: '$0.0007', chg: '-3.8%', cc: '#FF3B30', note: 'score raised 47 to 58 overnight.' }, chip(47))
+    ];
+    const pulseNew = [
+      pc('$MARIAN', 'Maid Marian', '4m', '$38k', 18, 'clear', 'clean 6/6', '4%', '12%', '19%', 'locked', 'x+tg'),
+      pc('$GALLOWS', 'Gallows Pole', '11m', '$61k', 83, 'trap', '2 rugs', '31%', '58%', '64%', 'unlocked', 'none', true),
+      pc('$TITHE', 'Tithe Collector', '26m', '$44k', 47, 'clear', 'unknown', '12%', '29%', '38%', 'locked 7d', 'tg'),
+      pc('$FRIARFEE', 'Friar Fee', '2h', '$12k', 91, 'trap', 'template T114', '31%', '61%', '74%', 'unlocked', 'none', true)
+    ];
+    const pulseGrad = [
+      pc('$NOCK', 'Full Nock', '3h', '$210k', 12, 'clear', 'clean 9/9', '2%', '8%', '14%', 'burned', 'x+tg+site'),
+      pc('$SCARLET', 'Will Scarlet', '5h', '$156k', 31, 'clear', '1 dead', '9%', '17%', '26%', 'locked 30d', 'x+tg'),
+      pc('$SHRF', 'Sheriffcoin', '7h', '$98k', 66, 'clear', '3 rugs', '22%', '41%', '52%', 'unlocked', 'x', true)
+    ];
+    const pulseDone = [
+      pc('$OUTLAWX', 'Outlaw Exchange', '3d', '$1.2M', 9, 'clear', 'clean 12/12', '1%', '4%', '11%', 'burned', 'x+tg+site'),
+      pc('$FLETCH', 'Fletcher', '6d', '$480k', 28, 'clear', 'unknown', '6%', '11%', '23%', 'locked 90d', 'x+tg'),
+      pc('$QUARREL', 'Crossbow Quarrel', '8d', '$220k', 39, 'clear', '1 dead', '11%', '19%', '31%', 'locked 30d', 'x')
+    ];
+    const filt = (arr) => s.flagged ? arr : arr.filter(x => !x.flagged);
+    const pLists = { new: pulseNew, grad: pulseGrad, done: pulseDone };
+    const num = (v) => { const m2 = String(v || 0).replace(/[$,+%\s]/g, ''); const f2 = parseFloat(m2) || 0; return /M/i.test(m2) ? f2 * 1e6 : /k/i.test(m2) ? f2 * 1e3 : f2; };
+    const pSorts = { gainers: (a, b) => num(b.chg) - num(a.chg), losers: (a, b) => num(a.chg) - num(b.chg), traded: (a, b) => num(b.vol) - num(a.vol), scanned: (a, b) => num(b.scans) - num(a.scans), risk: (a, b) => b.sc - a.sc, safe: (a, b) => a.sc - b.sc };
+    const pActive = withTok(filt(pLists[s.pulseTab] || pulseNew));
+    const pSorted = pSorts[s.pulseSort] ? pActive.slice().sort(pSorts[s.pulseSort]) : pActive;
+    const pulseRows = pSorted.map((x, i) => Object.assign({}, x, { rank: i + 1 }));
+    const pHidden = (pLists[s.pulseTab] || pulseNew).filter(x => x.flagged).length;
+
+    const bubbles = [
+      { x: 18, y: 22, r: 46, c: '#FF3B30', l: 'top 1 · 14%' }, { x: 46, y: 12, r: 30, c: '#FFB020', l: '6.2%' },
+      { x: 66, y: 34, r: 24, c: '#FFB020', l: '4.8%' }, { x: 34, y: 56, r: 20, c: '#00C805', l: '3.1%' },
+      { x: 58, y: 66, r: 15, c: '#00C805', l: '2.2%' }, { x: 80, y: 58, r: 12, c: '#00C805', l: '1.9%' },
+      { x: 8, y: 68, r: 10, c: '#2B7A3D', l: '1.4%' }, { x: 88, y: 18, r: 8, c: '#2B7A3D', l: '1.1%' }
+    ];
+    const snipers = [
+      { w: '0x91be…44aa', bought: '3.1%', status: 'sold all', sc: '#FF3B30', when: 'block 0' },
+      { w: '0x30cc…71de', bought: '2.4%', status: 'sold all', sc: '#FF3B30', when: 'block 0' },
+      { w: '0xa4f1…8b02', bought: '1.8%', status: 'holds', sc: '#FFB020', when: 'block 1' },
+      { w: '0x55e9…c3d7', bought: '1.2%', status: 'holds', sc: '#FFB020', when: 'block 2' }
+    ];
+    const whales = [
+      { w: 'quietpurse.eth', tags: 'kol · smart money', hold: '$1.9M', move: 'sold $96k $SHRF', mc: '#FF3B30', time: '4m' },
+      { w: '0x7ba2…e1c9', tags: 'smart money', hold: '$840k', move: 'bought $18.7k $SCARLET', mc: '#00C805', time: '1m' },
+      { w: '0x91be…44aa', tags: 'sniper · repeat offender', hold: '$410k', move: 'sold $52.4k $GALLOWS', mc: '#FF3B30', time: '12m' },
+      { w: 'heavypurse.eth', tags: 'fresh · whale', hold: '$2.6M', move: 'moved $500k to cex', mc: '#FFB020', time: '31m' },
+      { w: '0x22fd…09b1', tags: 'smart money', hold: '$620k', move: 'bought $7.3k $MARIAN', mc: '#00C805', time: '9m' }
+    ];
+    const holdings = [
+      Object.assign({ t: '$NOCK', amt: '$6,140', pnl: '+$2,210', pc2: '#00C805' }, chip(12)),
+      Object.assign({ t: '$SCARLET', amt: '$3,890', pnl: '+$640', pc2: '#00C805' }, chip(31)),
+      Object.assign({ t: '$SHRF', amt: '$1,420', pnl: '-$980', pc2: '#FF3B30' }, chip(66)),
+      Object.assign({ t: '$OUTLAWX', amt: '$960', pnl: '+$120', pc2: '#00C805' }, chip(9))
+    ];
+    const rugdb = [
+      { t: '$CURFEW', sc: 96, band: 'Rugged', bg: '#8B1E1A', fg: '#E6FBEA', pad: 'archery.fun', age: '9d', liq: '$0', when: 'jun 30' },
+      { t: '$GALLOWS', sc: 83, band: 'Extreme', bg: '#8B1E1A', fg: '#E6FBEA', pad: 'archery.fun', age: '11m', liq: '$61k', when: 'live' },
+      { t: '$TOLLGATE', sc: 79, band: 'Extreme', bg: '#8B1E1A', fg: '#E6FBEA', pad: 'quiverpad', age: '28d', liq: '$0', when: 'jun 12' },
+      { t: '$SHRF', sc: 66, band: 'High', bg: '#FF3B30', fg: '#0A1F12', pad: 'archery.fun', age: '7h', liq: '$98k', when: 'live' },
+      { t: '$ABBOT', sc: 81, band: 'Extreme', bg: '#8B1E1A', fg: '#E6FBEA', pad: 'quiverpad', age: '58d', liq: '$0', when: 'may 13' },
+      { t: '$PILGRIM', sc: 54, band: 'High', bg: '#FF3B30', fg: '#0A1F12', pad: 'archery.fun', age: '40d', liq: '$2k', when: 'jun 01' }
+    ];
+    const rugfeed = [
+      { t: '$GALLOWS', msg: 'honeypot confirmed. sells revert for non whitelist.', time: '3m', c: '#FF3B30' },
+      { t: '$TITHE', msg: 'LP unlock inside 24h. score raised 47 to 58.', time: '22m', c: '#FFB020' },
+      { t: '$VESPERS', msg: 'proxy upgraded post launch. taxes now mutable.', time: '1h', c: '#FF3B30' },
+      { t: '$SHRF', msg: 'whale exit. top holder sold 40 percent of stack.', time: '4m', c: '#FF3B30' },
+      { t: '$FRIARFEE', msg: 'scam template match 94 percent. template T 114.', time: '2h', c: '#FF3B30' }
+    ];
+    const leaders = (s.period === '7d' ? [
+      { r: 1, w: 'quietpurse.eth', tag: 'kol', pnl: '+$412k', wr: '71%', wash: 'clear', wc: '#00C805' },
+      { r: 2, w: '0x7ba2…e1c9', tag: 'smart money', pnl: '+$268k', wr: '64%', wash: 'clear', wc: '#00C805' },
+      { r: 3, w: 'fletcher.eth', tag: 'kol', pnl: '+$154k', wr: '58%', wash: 'flagged', wc: '#FF3B30' },
+      { r: 4, w: '0x22fd…09b1', tag: 'smart money', pnl: '+$97k', wr: '66%', wash: 'clear', wc: '#00C805' }
+    ] : [
+      { r: 1, w: '0x7ba2…e1c9', tag: 'smart money', pnl: '+$1.1M', wr: '62%', wash: 'clear', wc: '#00C805' },
+      { r: 2, w: 'quietpurse.eth', tag: 'kol', pnl: '+$890k', wr: '68%', wash: 'clear', wc: '#00C805' },
+      { r: 3, w: '0x22fd…09b1', tag: 'smart money', pnl: '+$410k', wr: '61%', wash: 'clear', wc: '#00C805' },
+      { r: 4, w: 'fletcher.eth', tag: 'kol', pnl: '+$310k', wr: '55%', wash: 'flagged', wc: '#FF3B30' }
+    ]);
+    const survPads = [
+      { pad: 'archery.fun', med: '2.6d', w: 34, deaths: '1,204' },
+      { pad: 'quiverpad', med: '5.1d', w: 61, deaths: '689' },
+      { pad: 'direct deploy', med: '1.2d', w: 18, deaths: '2,417' }
+    ];
+    const histSets = { all: [8, 14, 22, 30, 42, 34, 26, 18, 12, 9, 6, 4], 'archery.fun': [12, 20, 30, 38, 34, 24, 16, 10, 7, 5, 3, 2], quiverpad: [4, 8, 14, 20, 28, 32, 30, 22, 16, 12, 8, 6], 'direct deploy': [22, 34, 40, 30, 20, 12, 8, 5, 3, 2, 1, 1] };
+    const hist = (histSets[s.survPad] || histSets.all).map((h, i) => ({ h: h * 2.6, l: i }));
+    const survChips = ['all', 'archery.fun', 'quiverpad', 'direct deploy'].map(p => ({ label: p, style: 'padding:4px 9px;font-size:10px;cursor:pointer;border-radius:2px;border:1px solid ' + (s.survPad === p ? '#00C805;color:#00C805;background:#0D2A19' : '#164A2A;color:#496552;background:transparent'), go: () => this.setState({ survPad: p }) }));
+    const receipts = [
+      { t: '$CURFEW', sc: 88, hrs: '6h 12m', known: 61, drop: '-98%' },
+      { t: '$TOLLGATE', sc: 79, hrs: '11h 40m', known: 38, drop: '-96%' },
+      { t: '$ABBOT', sc: 81, hrs: '3h 05m', known: 44, drop: '-99%' }
+    ];
+    const groups = [
+      { name: 'kols', count: 12, last: 'quietpurse.eth sold $SHRF · 4m' },
+      { name: 'snipers', count: 31, last: '0x91be…44aa sold $GALLOWS · 12m' },
+      { name: 'my bags', count: 5, last: '$NOCK +12.4% today' }
+    ];
+    const cliff = [52, 58, 61, 66, 70, 74, 72, 78, 82, 85, 84, 88, 86, 90, 88, 84, 30, 12, 6, 4].map((h, i) => ({ h, c: i >= 15 ? '#FF3B30' : '#2B7A3D' }));
+    const endpoints = [
+      ['POST /v1/analyze', 'full 31 module scan, one verdict'], ['GET /v1/rug-score', 'score + band only, cached 30s'],
+      ['GET /v1/quick-check', 'critical signals, sub 2s'], ['GET /v1/contract-security', 'honeypot, mint, taxes, proxy'],
+      ['GET /v1/holders', 'distribution + sybil adjusted'], ['GET /v1/liquidity', 'LP status, lock, exit depth'],
+      ['GET /v1/whales', 'large holders + movement'], ['GET /v1/bundles', 'launch + historical bundles'],
+      ['GET /v1/insiders', 'network graph, legend tier'], ['GET /v1/cross-funding', 'shared funder detection'],
+      ['GET /v1/sybil', 'sybil bands + adjusted top10'], ['GET /v1/snipers', 'block 0 buyers, sold or held'],
+      ['GET /v1/fresh-wallets', 'wallet age distribution'], ['GET /v1/dev-tracker', 'dev wallet movement'],
+      ['GET /v1/deployer', 'launch history + survival'], ['GET /v1/wallet-reputation', 'the rap sheet'],
+      ['GET /v1/wallet-performance', 'realized pnl, win rate'], ['GET /v1/funding-origin', 'exchange trace, kyc tier'],
+      ['GET /v1/lifecycle', 'curve to graduation state'], ['GET /v1/pulse', 'scored launch board'],
+      ['GET /v1/usage', 'your quota + overage credits']
+    ].map(e => ({ ep: e[0], d: e[1] }));
+
+    const words = ['scan', 'watch', 'sheriff', 'deployer', 'wallet', 'heist', 'pulse', 'quiver', 'compare', 'longbow', 'receipts', 'docs', 'help', 'account', 'hideout', 'survival', 'leaderboard', 'merrymen', 'kit', 'rugs', 'rap'];
+    const cm = s.cmd || '';
+    const ghost = cm.trim() && !cm.includes(' ') ? ((words.find(w => w.startsWith(cm.toLowerCase()) && w !== cm.toLowerCase()) || '').slice(cm.length)) : '';
+    const canned = [
+      'Short version: the contract itself sells fine, but the people around it are the problem. Three of the deployer\u2019s last launches died with the pool. I would treat the score of 74 as generous.',
+      'The bundle share is 18 percent from one funder. That is not a crowd, that is a costume. If those wallets start selling together, the alert you set on whale dumps will fire first.',
+      'LP is locked for 30 days, which covers you from a classic pull until aug 08. The proxy is the sharper risk: taxes can be rewritten after you buy. Not financial advice. DYOR.'
+    ];
+
+    // ── charts. the candle pane stands in for an embedded lightweight-charts widget, dark theme ──
+    const cr = rng({ '1m': 11, '5m': 29, '15m': 47, '1h': 73, '4h': 97, '1d': 131 }[s.tf] || 47);
+    const NC = 54, CW = 700;
+    let cb = 100; const rawC = [];
+    for (let i = 0; i < NC; i++) { const o = cb; const c2 = Math.max(34, o + (cr() - (i > NC * 0.7 ? 0.57 : 0.45)) * 6.5); rawC.push([o, c2, Math.max(o, c2) + cr() * 2.2, Math.min(o, c2) - cr() * 2.2, 0.15 + cr() * 0.85]); cb = c2; }
+    const hiA = Math.max(...rawC.map(x => x[2])), loA = Math.min(...rawC.map(x => x[3]));
+    const CY = (v) => 8 + ((hiA - v) / (hiA - loA)) * 176;
+    const candles = rawC.map((x, i) => { const up = x[1] >= x[0]; const cx = 10 + i * (CW - 20) / NC; return { x: (cx + 3.2).toFixed(1), bx: cx.toFixed(1), by: CY(Math.max(x[0], x[1])).toFixed(1), bh: Math.max(1.5, Math.abs(CY(x[0]) - CY(x[1]))).toFixed(1), wt: CY(x[2]).toFixed(1), wb: CY(x[3]).toFixed(1), col: up ? '#00C805' : '#FF3B30', vh: Math.round(x[4] * 34), vy: 248 - Math.round(x[4] * 34) }; });
+    const chartGrid = [0.15, 0.4, 0.65, 0.9].map(f => { const y = 8 + f * 176; return { y: y.toFixed(0), t: Math.round(y) - 6, p: ((hiA - f * (hiA - loA)) * 0.000184).toFixed(4) }; });
+    const lastC = rawC[NC - 1][1];
+    const tfBtns = ['1m', '5m', '15m', '1h', '4h', '1d'].map(t => ({ label: t, style: 'padding:4px 8px;font-size:10px;cursor:pointer;border-radius:2px;border:1px solid ' + (s.tf === t ? '#00C805;color:#00C805;background:#0D2A19' : 'transparent;color:#496552;background:transparent'), go: () => this.setState({ tf: t }) }));
+    // rug receipt collapse line, flag marker at index 15
+    const rugY = (h) => (80 - h * 0.78).toFixed(1);
+    const rugLinePre = cliff.slice(0, 16).map((b, i) => ((i * 320) / 19).toFixed(1) + ',' + rugY(b.h)).join(' ');
+    const rugLinePost = cliff.slice(15).map((b, i) => (((i + 15) * 320) / 19).toFixed(1) + ',' + rugY(b.h)).join(' ');
+    const rugFlagX = ((15 * 320) / 19).toFixed(1);
+    // survival decay per launchpad
+    const survCurves = [['archery.fun', 2.6, '#D4A937'], ['quiverpad', 5.1, '#00C805'], ['direct deploy', 1.2, '#FF3B30']].map(x => ({ pad: x[0], med: x[1] + 'd median', col: x[2], pts: [0, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 7, 10, 14, 21, 30].map((d3, i) => ((i * 720) / 13).toFixed(0) + ',' + (10 + (1 - Math.exp(-d3 / x[1])) * 118).toFixed(1)).join(' ') }));
+    // time travel holder replay
+    const ttBars = [0, 1, 2, 3, 4, 5, 6].map(i => ({ h: Math.round(12 + i * 2.4 + (s.tt / 100) * i * 5.6), c: i >= 5 ? '#FF3B30' : i >= 3 ? '#FFB020' : '#2B7A3D' }));
+    // wallet pnl over time
+    const pr2 = rng(777); let acc = 0; const pnlPts = [];
+    for (let i = 0; i < 30; i++) { acc += (pr2() - 0.36) * 26; pnlPts.push(((i * 560) / 29).toFixed(0) + ',' + Math.max(8, Math.min(104, 78 - acc * 0.5)).toFixed(1)); }
+    const pnlBars = [['$NOCK', '+$2,210', 2210], ['$SCARLET', '+$640', 640], ['$OUTLAWX', '+$120', 120], ['$SHRF', '-$980', -980]].map(x => ({ t: x[0], val: x[1], w: Math.round(Math.abs(x[2]) / 2210 * 100), c: x[2] >= 0 ? '#00C805' : '#FF3B30' }));
+    const sp2 = rng(555); let a2 = 0; const spoilsPts = [];
+    for (let i = 0; i < 24; i++) { a2 += (sp2() - 0.42) * 6; spoilsPts.push(((i * 200) / 23).toFixed(0) + ',' + Math.max(3, Math.min(27, 18 - a2 * 0.9)).toFixed(1)); }
+    // price impact by sell size
+    const impactBars = [10, 25, 50, 75, 100].map(p => { const im = Math.pow(p / 100, 1.4) * 26; return { l: p + '%', h: Math.round(im * 1.7) + 4, c: im > 12 ? '#FF3B30' : im > 5 ? '#FFB020' : '#00C805' }; });
+    const lbBars = [25, 60, 120, 250, 500].map(p => { const im = Math.pow(p / 500, 1.3) * 42; return { l: p, h: Math.round(im * 1.1) + 4, c: im > 12 ? '#FF3B30' : im > 5 ? '#FFB020' : '#00C805' }; });
+
+    const rainCols = [6, 16, 27, 39, 52, 64, 77, 91].map((x, i) => { const rr = rng(x * 13 + 7); let t2 = ''; for (let j = 0; j < 44; j++) t2 += (rr() > 0.5 ? '1' : '0') + '\n'; return { x: x + '%', txt: t2 + t2, dur: (10 + (i % 4) * 3) + 's', del: (-i * 2.7).toFixed(1) + 's', op: i % 3 === 0 ? 0.26 : 0.16 }; });
+
+    const P = TOKENS[s.prev] || {};
+    return {
+      rainCols,
+      candles, chartGrid, tfBtns,
+      lastY: CY(lastC).toFixed(1), lastT: Math.round(CY(lastC)) - 6, lastPrice: (lastC * 0.000184).toFixed(4),
+      rugLinePre, rugLinePost, rugFlagX,
+      survCurves, survChips,
+      ttBars, ttTop: Math.round(41 + s.tt * 0.16) + '%',
+      replayTT: () => { clearInterval(this._ttI); this.setState({ tt: 0 }); this._ttI = setInterval(() => { const nt = this.state.tt + 3; if (nt >= 100) { clearInterval(this._ttI); this.setState({ tt: 100 }); } else this.setState({ tt: nt }); }, 60); },
+      pnlLine: pnlPts.join(' '), pnlBars, spoilsLine: spoilsPts.join(' '),
+      impactBars, lbBars,
+      navWatch: nav([['hideout', 'The Hideout', 'h', 'Home'], ['pulse', 'Bounty Board', 'b', 'Discover'], ['quiver', 'The Quiver', 'q', 'Watchlist'], ['sheriff', 'Sheriff Watch', 'w', 'Whale Tracker'], ['heist', 'The Heist', 'e', 'Smart Money']]),
+      navIntel: nav([['rugs', 'Rugs', 'r', 'Rug Database'], ['survival', 'Survival Curves', 'v'], ['leaderboard', 'Leaderboard', 'l']]),
+      navCrew: nav([['merrymen', 'Merry Men', 'm', 'Community']]),
+      navSys: nav([['account', 'Account'], ['docs', 'API Docs'], ['kit', 'The Kit']]),
+      planLabel: legend ? '◆ Legend' : 'Outlaw · free', planColor: legend ? '#D4A937' : '#7FA68A',
+      legend, locked: !legend,
+      sHideout: s.screen === 'hideout', sScan: s.screen === 'scan', sPulse: s.screen === 'pulse', sQuiver: s.screen === 'quiver',
+      sLongbow: s.screen === 'longbow', sSheriff: s.screen === 'sheriff', sHeist: s.screen === 'heist', sWallet: s.screen === 'wallet',
+      sDeployer: s.screen === 'deployer',
+      sRugsFeed: s.screen === 'rugs' && s.rugTab === 'feed', sRugsDb: s.screen === 'rugs' && s.rugTab === 'db', sRugsRec: s.screen === 'rugs' && s.rugTab === 'receipts',
+      rugFeedTab: () => this.setState({ rugTab: 'feed' }),
+      rugDbTab: () => this.setState({ rugTab: 'db' }),
+      rugRecTab: () => this.setState({ rugTab: 'receipts' }),
+      sSurvival: s.screen === 'survival', sLeaderboard: s.screen === 'leaderboard',
+      sRapsheet: s.screen === 'rapsheet', sMerrymen: s.screen === 'merrymen', sCompare: s.screen === 'compare',
+      sAccount: s.screen === 'account', sDocs: s.screen === 'docs', sKit: s.screen === 'kit',
+      cmd: s.cmd, ghost, setCmd: (e) => this.setState({ cmd: e.target.value, histIdx: -1 }),
+      onCmdKey: (e) => {
+        if (e.key === 'Enter') this.runCommand(s.cmd);
+        else if (e.key === 'Tab' && ghost) { e.preventDefault(); this.setState({ cmd: s.cmd + ghost + ' ' }); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); const i = Math.min(s.histIdx + 1, s.hist.length - 1); if (s.hist[i] !== undefined) this.setState({ histIdx: i, cmd: s.hist[i] }); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); const i = s.histIdx - 1; this.setState({ histIdx: Math.max(i, -1), cmd: i >= 0 ? s.hist[i] : '' }); }
+      },
+      blockH: s.block.toLocaleString('en-US'), lat: s.lat + 'ms', latColor: s.lat > 48 ? '#FFB020' : '#7FA68A',
+      screenPath: '~/' + s.screen,
+      paletteOpen: s.palette, closePalette: () => this.setState({ palette: false }),
+      paletteCmds: this.CMDS.map((c2) => ({ u: c2[0], d: c2[1], run: () => this.runCommand(c2[2]) })),
+      scanning: s.scanning, notScanning: !s.scanning, scanLog: s.scanLog,
+      replay: () => this.streamScan(), runCmd: () => this.runCommand(s.cmd || 'scan 0x8f3c…a2e1'),
+      goScan: (e) => { if (e && e.preventDefault) e.preventDefault(); this.go('scan'); },
+      goDeployerFn: (e) => { if (e && e.preventDefault) e.preventDefault(); this.go('deployer'); },
+      goRapsheet: (e) => { if (e && e.preventDefault) e.preventDefault(); this.go('rapsheet'); },
+      goAccount: (e) => { if (e && e.preventDefault) e.preventDefault(); this.go('account'); },
+      goQuiverFn: (e) => { if (e && e.preventDefault) e.preventDefault(); this.go('quiver'); },
+      scanTabs: tabs.map(([id, label]) => ({ label, style: tabStyle(s.tab === id, (id === 'insiders' || id === 'money') && !legend), go: () => this.setState({ tab: id }) })),
+      tSec: s.tab === 'security', tHold: s.tab === 'holders', tIns: s.tab === 'insiders', tLaunch: s.tab === 'launch',
+      tMoney: s.tab === 'money', tLiq: s.tab === 'liquidity', tCreator: s.tab === 'creator', tSocial: s.tab === 'social',
+      insLocked: s.tab === 'insiders' && !legend, insOpen: s.tab === 'insiders' && legend,
+      moneyLocked: s.tab === 'money' && !legend, moneyOpen: s.tab === 'money' && legend,
+      sell: s.sell, setSell: (e) => this.setState({ sell: +e.target.value }),
+      sellUsd: '$' + sellUsd.toLocaleString(), impact: impact + '%', impactColor: impact > 12 ? '#FF3B30' : impact > 5 ? '#FFB020' : '#00C805',
+      recv: '$' + recv.toLocaleString(),
+      lb: s.lb, setLb: (e) => this.setState({ lb: +e.target.value }), lbSol: s.lb + ' SOL',
+      lbImpact: lbImpact + '%', lbImpactColor: lbImpact > 12 ? '#FF3B30' : lbImpact > 5 ? '#FFB020' : '#00C805', lbRecv: lbRecv + ' SOL',
+      tt: s.tt, setTt: (e) => this.setState({ tt: +e.target.value }), ttLabel: 'day ' + ttDay + ' of 4',
+      magic: s.magic, toggleMagic: () => this.setState({ magic: !s.magic }), magicLabel: s.magic ? 'magic nodes: on' : 'magic nodes: off',
+      flagged: s.flagged, toggleFlagged: () => this.setState({ flagged: !s.flagged }),
+      flaggedLabel: s.flagged ? 'showing flagged' : 'show flagged',
+      period7: s.period === '7d', period30: s.period === '30d',
+      set7: () => this.setState({ period: '7d' }), set30: () => this.setState({ period: '30d' }),
+      p7Style: 'padding:6px 12px;font-size:11px;border-radius:3px;cursor:pointer;border:1px solid ' + (s.period === '7d' ? '#00C805;color:#00C805;background:#0D2A19' : '#164A2A;color:#7FA68A;background:transparent'),
+      p30Style: 'padding:6px 12px;font-size:11px;border-radius:3px;cursor:pointer;border:1px solid ' + (s.period === '30d' ? '#00C805;color:#00C805;background:#0D2A19' : '#164A2A;color:#7FA68A;background:transparent'),
+      looseArrow: () => this.toast('Alert set. We ping you when it hits.'),
+      addQuiver: () => this.toast('Marked. $NIGHTJAR rides in the Quiver.'),
+      shareScan: () => this.toast('Trail copied. Post it where you like.'),
+      rateLimit: () => this.toast('Hold the line. Too many scans at once.'),
+      openSwap: () => this.setState({ swapOpen: true }), closeSwap: () => this.setState({ swapOpen: false }),
+      confirmSwap: () => { this.setState({ swapOpen: false }); this.toast('Strike routed. Watch the Spoils.'); },
+      swapOpen: s.swapOpen,
+      openFriar: () => this.setState({ friarOpen: true }), closeFriar: () => this.setState({ friarOpen: false }),
+      friarOpen: s.friarOpen, friarMsgs: s.friarMsgs, friarQ: s.friarQ,
+      setFriarQ: (e) => this.setState({ friarQ: e.target.value }),
+      askFriar: () => {
+        if (!s.friarQ.trim()) return;
+        const reply = canned[(s.friarMsgs.length - 1) % canned.length];
+        this.setState({ friarMsgs: s.friarMsgs.concat([{ who: 'you', text: s.friarQ }, { who: 'tuck', text: reply }]), friarQ: '' });
+      },
+      onFriarKey: (e) => { if (e.key === 'Enter') this.renderVals().askFriar(); },
+      toastMsg: s.toast, hasToast: !!s.toast,
+      arrowTrigger: s.arrowTrigger, setTrigger: (e) => this.setState({ arrowTrigger: e.target.value }),
+      heist: withTok(heist), arrowsStruck, quiver: withTok(quiver), whales, holdings: withTok(holdings), rugdb: withTok(rugdb), rugfeed: withTok(rugfeed), leaders, survPads, hist, receipts, groups, bubbles, snipers, cliff, endpoints,
+      pulseRows,
+      pulseTabs: [['new', 'New'], ['grad', 'Graduating'], ['done', 'Graduated']].map(x => ({ label: x[1], style: 'padding:11px 14px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid ' + (s.pulseTab === x[0] ? '#00C805;color:#E6FBEA;font-weight:700' : 'transparent;color:#7FA68A'), go: () => this.setState({ pulseTab: x[0] }) })),
+      pulseSorts: [['gainers', 'Gainers'], ['losers', 'Losers'], ['traded', 'Most traded'], ['scanned', 'Most scanned'], ['risk', 'Highest risk'], ['safe', 'Safest']].map(x => ({ label: x[1], style: 'padding:5px 9px;font-size:10px;cursor:pointer;border-radius:3px;border:1px solid ' + (s.pulseSort === x[0] ? '#00C805;color:#00C805;background:#0D2A19' : '#164A2A;color:#7FA68A;background:transparent'), go: () => this.setState({ pulseSort: s.pulseSort === x[0] ? '' : x[0] }) })),
+      pulseHiddenLabel: pHidden + ' flagged launch' + (pHidden === 1 ? '' : 'es') + (s.flagged ? ' shown' : ' hidden'),
+      quiverGlance: withTok(quiver),
+      pvOff,
+      prevOpen: !!(s.prev && TOKENS[s.prev]),
+      prevT: P.t, prevN: P.n, prevSc: P.sc, prevBand: P.band, prevBg: P.bg, prevFg: P.fg,
+      prevHp: P.hp, prevHpc: P.hpc, prevMc: P.mc, prevAge: P.age, prevLiq: P.liq, prevScans: P.scans,
+      prevWhy: P.why, prevConf: P.conf,
+      prevFactors: (P.factors || []).map(f => ({ f: f[0], p: f[1], c: f[2] })),
+      prevHolders: P.holdersLine, prevLpLine: P.lpLine,
+      prevPos: 'position:fixed;left:' + Math.max(8, Math.min(s.px + 16, window.innerWidth - 392)) + 'px;top:' + Math.max(8, Math.min(s.py + 12, window.innerHeight - 380)) + 'px'
+    };
+  }
+}
+</script>
+</body>
+</html>

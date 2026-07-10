@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783695728773,
+      "tag": "0000_salty_microbe",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783699385938,
+      "tag": "0001_previous_tigra",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783699488554,
+      "tag": "0002_jazzy_adam_warlock",
+      "breakpoints": true
+    }
+  ]
+}

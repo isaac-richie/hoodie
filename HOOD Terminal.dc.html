@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A1F12;color:#E6FBEA;font-family:'JetBrains Mono',ui-monospace,monospace;-webkit-font-smoothing:antialiased}
+a{color:#00C805;text-decoration:none}a:hover{color:#E6FBEA}
+::selection{background:#00C805;color:#0A1F12}
+input,button{font-family:'JetBrains Mono',ui-monospace,monospace}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes tick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes sweep{0%{top:-3px}100%{top:100%}}
+@keyframes rainfall{0%{transform:translateY(-50%)}100%{transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){.scan-sweep{animation:none !important;top:34% !important}.bin-rain{display:none !important}}
+</style>
+</helmet>
+
+<div style="position:sticky;top:0;z-index:50;background:#0A1F12;border-bottom:1px solid #164A2A">
+  <div style="max-width:1240px;margin:0 auto;padding:0 32px;height:60px;display:flex;align-items:center;gap:28px">
+    <a href="#" onClick="{{ goHome }}" style="display:flex;align-items:baseline;gap:8px;color:#E6FBEA">
+      <span style="font-family:'UnifrakturCook',serif;font-size:26px;color:#E6FBEA">Hood</span>
+      <span style="font-size:15px;font-weight:700;letter-spacing:.14em;color:#00C805">TERMINAL</span>
+    </a>
+    <nav style="display:flex;gap:22px;font-size:13px;margin-left:12px">
+      <a href="#" onClick="{{ goHome }}" style="color:#7FA68A">what it sees</a>
+      <a href="#" onClick="{{ goToken }}" style="color:#7FA68A">sample scan</a>
+      <a href="#" onClick="{{ goBlog }}" style="color:#7FA68A">field notes</a>
+      <a href="HOOD App.dc.html#docs" style="color:#7FA68A">api</a>
+    </nav>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+      <a href="#" onClick="{{ goSignin }}" style="font-size:13px;color:#E6FBEA;border:1px solid #164A2A;padding:8px 14px;border-radius:3px">Sign in</a>
+      <a href="#" onClick="{{ goSignin }}" style="font-size:13px;font-weight:700;color:#0A1F12;background:#D4A937;padding:9px 16px;border-radius:3px" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Enter the Hideout</a>
+    </div>
+  </div>
+</div>
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Marketing home">
+
+  <div style="border-bottom:1px solid #164A2A;background:#06140B;overflow:hidden">
+    <div style="display:flex;width:max-content;animation:tick 36s linear infinite">
+      <sc-for list="{{ tickerLoop }}" as="tk" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 26px;font-size:11px;white-space:nowrap;border-right:1px solid #164A2A">
+          <span style="color:#FF3B30">●</span><span style="color:#E6FBEA">{{ tk.t }}</span><span style="color:#7FA68A">{{ tk.s }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position:relative;border-bottom:1px solid #164A2A;overflow:hidden;z-index:0">
+    <div class="bin-rain" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1">
+      <sc-for list="{{ rainCols }}" as="rc" hint-placeholder-count="8">
+        <div style="position:absolute;left:{{ rc.x }};top:0;font-size:12px;line-height:19px;color:#2B7A3D;opacity:{{ rc.op }};white-space:pre;animation:rainfall {{ rc.dur }} linear {{ rc.del }} infinite">{{ rc.txt }}</div>
+      </sc-for>
+    </div>
+    <div class="scan-sweep" style="position:absolute;left:0;right:0;top:-3px;height:2px;background:#00C805;opacity:.14;animation:sweep 9s linear infinite;pointer-events:none;z-index:1"></div>
+    <svg width="900" height="900" viewBox="0 0 900 900" style="position:absolute;right:-180px;top:-260px;opacity:.55;pointer-events:none">
+      <ellipse cx="450" cy="450" rx="90" ry="70" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+      <ellipse cx="450" cy="450" rx="160" ry="128" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+      <ellipse cx="450" cy="450" rx="235" ry="192" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+      <ellipse cx="450" cy="450" rx="315" ry="262" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+      <ellipse cx="450" cy="450" rx="400" ry="338" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+      <ellipse cx="450" cy="450" rx="440" ry="415" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+    </svg>
+    <div style="max-width:1240px;margin:0 auto;padding:84px 32px 80px;position:relative;display:flex;flex-direction:column;align-items:center;text-align:center">
+      <h1 style="margin:0 0 40px;font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:700;font-size:44px;line-height:54px;color:#E6FBEA;text-wrap:balance;max-width:880px">Onchain token risk intelligence for <span style="color:#00C805">Robinhood Chain</span></h1>
+      <div style="position:relative;width:100%;max-width:680px;text-align:left">
+        <div style="position:absolute;left:50%;bottom:-20px;transform:translateX(-50%);display:flex;align-items:flex-end;gap:5px;height:300px;opacity:.16;pointer-events:none">
+          <sc-for list="{{ hoodBars }}" as="b" hint-placeholder-count="9">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+              <div style="width:1px;background:{{ b.c }};height:{{ b.wick }}px;opacity:.7"></div>
+              <div style="width:9px;background:{{ b.c }};height:{{ b.h }}px"></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="position:relative;background:#06140B;border:1px solid #164A2A;border-radius:4px;overflow:hidden">
+          <div style="padding:9px 14px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:10px;font-size:11px">
+            <span style="color:#496552">┌ hood terminal · live demo</span>
+            <span style="margin-left:auto;color:{{ heroStatusColor }}">● {{ heroStatus }}</span>
+          </div>
+          <div style="padding:14px 16px;min-height:264px;display:flex;flex-direction:column;font-size:12px;line-height:21px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="color:#D4A937;font-weight:700">❯</span>
+              <input value="{{ heroCmd }}" onChange="{{ setHeroCmd }}" onKeyDown="{{ onHeroKey }}" placeholder="scan a token. type anything, hit enter." style="flex:1;background:transparent;border:none;outline:none;color:#E6FBEA;font-size:13px;padding:4px 0">
+              <span style="display:inline-block;width:9px;height:16px;background:#00C805;animation:blink 1.1s steps(1) infinite"></span>
+            </div>
+            <sc-for list="{{ heroLog }}" as="l" hint-placeholder-count="0">
+              <div style="display:flex;gap:12px"><span style="color:#7FA68A;width:120px;flex:none">{{ l.m }}</span><span style="color:{{ l.c }};width:56px;flex:none">{{ l.tag }}</span><span style="color:#E6FBEA;min-width:0">{{ l.msg }}</span></div>
+            </sc-for>
+            <sc-if value="{{ heroDone }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:12px;border:1px solid #164A2A;background:#0A1F12;padding:12px 14px;display:flex;align-items:center;gap:14px">
+                <span style="font-size:30px;font-weight:700;color:#FF3B30;line-height:1">66</span>
+                <div style="flex:1"><span style="display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;background:#FF3B30;color:#0A1F12">High risk</span><div style="font-size:11px;color:#7FA68A;margin-top:5px">Deployer has three confirmed rugs. Top ten holds 52 percent.</div></div>
+                <a href="#" onClick="{{ goSignin }}" style="font-size:11px;color:#00C805;white-space:nowrap">full scan ❯</a>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:16px;line-height:24px;color:#7FA68A;max-width:560px;margin:32px 0 30px;font-family:Inter,sans-serif">Scan any Robinhood Chain token and see if it will rob you, and how. Thirty one modules, one verdict, every piece of evidence on the table.</p>
+      <a href="#" onClick="{{ goSignin }}" style="font-size:14px;font-weight:700;color:#0A1F12;background:#D4A937;padding:14px 24px;border-radius:3px" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Enter the Hideout</a>
+    </div>
+  </div>
+
+  <div data-screen-label="Discover preview" style="border-bottom:1px solid #164A2A">
+    <div style="max-width:1240px;margin:0 auto;padding:72px 32px">
+      <div style="font-size:10px;letter-spacing:.18em;color:#7FA68A;text-transform:uppercase;margin-bottom:16px">discover · every launch, pre scored</div>
+      <div style="display:flex;gap:12px;margin-bottom:8px">
+        <div style="flex:1;display:flex;align-items:center;gap:10px;background:#06140B;border:1px solid #164A2A;border-radius:3px;padding:0 14px">
+          <span style="color:#D4A937;font-weight:700">❯</span>
+          <input placeholder="paste a Robinhood Chain token address" style="flex:1;background:transparent;border:none;outline:none;color:#E6FBEA;font-size:13px;padding:13px 0">
+        </div>
+        <a href="#" onClick="{{ openFreeScan }}" style="display:flex;align-items:center;background:#D4A937;color:#0A1F12;border-radius:3px;font-size:13px;font-weight:700;padding:0 22px" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Scan</a>
+      </div>
+      <div style="background:#06140B;border:1px solid #164A2A;border-radius:0;margin-bottom:1px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:0 14px">
+        <div style="display:flex;gap:2px">
+          <sc-for list="{{ dTabs }}" as="dt" hint-placeholder-count="3"><button onClick="{{ dt.go }}" style="{{ dt.style }}">{{ dt.label }}</button></sc-for>
+        </div>
+        <span style="width:1px;height:18px;background:#164A2A"></span>
+        <div style="display:flex;gap:4px;align-items:center;padding:8px 0">
+          <sc-for list="{{ dSorts }}" as="ds" hint-placeholder-count="3"><button onClick="{{ ds.go }}" style="{{ ds.style }}">{{ ds.label }}</button></sc-for>
+        </div>
+        <span style="margin-left:auto;font-size:10px;color:#496552;display:flex;align-items:center;gap:8px">live<span style="display:inline-block;width:6px;height:11px;background:#00C805;animation:blink 1.1s steps(1) infinite"></span></span>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:0;overflow:hidden">
+        <div style="display:grid;grid-template-columns:30px 1.8fr 1.5fr 84px 84px 54px 64px;gap:10px;padding:9px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A;align-items:center">
+          <span>#</span><span>token</span><span>risk</span><span style="text-align:right">mcap</span><span style="text-align:right">vol 24h</span><span style="text-align:right">age</span><span style="text-align:right">24h</span>
+        </div>
+        <sc-for list="{{ dRows }}" as="d" hint-placeholder-count="4">
+          <div onClick="{{ goToken }}" style="display:grid;grid-template-columns:30px 1.8fr 1.5fr 84px 84px 54px 64px;gap:10px;align-items:center;background:#06140B;padding:8px 16px;border-bottom:1px solid #113020;font-size:12px;cursor:pointer" style-hover="background:#0A1F12">
+            <span style="color:#496552">{{ d.rank }}</span>
+            <span style="display:flex;align-items:center;gap:9px;min-width:0">
+              <span style="width:24px;height:24px;flex:none;border-radius:50%;background:#164A2A;color:#7FA68A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">{{ d.lg }}</span>
+              <span style="display:flex;flex-direction:column;min-width:0;line-height:15px"><span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.t }}</span><span style="font-size:10px;color:#496552;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.n }}</span></span>
+            </span>
+            <span style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap;row-gap:2px">
+              <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ d.bg }};color:{{ d.fg }};white-space:nowrap">{{ d.sc }} {{ d.band }}</span>
+              <span style="font-size:9px;color:{{ d.hpc }}">hp {{ d.hp }}</span>
+            </span>
+            <span style="text-align:right">{{ d.mc }}</span>
+            <span style="text-align:right">{{ d.vol }}</span>
+            <span style="text-align:right;color:#7FA68A">{{ d.age }}</span>
+            <span style="text-align:right;color:{{ d.cc }}">{{ d.chg }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="border-bottom:1px solid #164A2A;background:#06140B">
+    <div style="max-width:1240px;margin:0 auto;padding:52px 32px;display:grid;grid-template-columns:3fr 2.6fr 2.4fr 2.8fr;gap:1px;background:#164A2A;border:1px solid #164A2A">
+      <div style="background:#06140B;padding:26px 26px"><div style="font-size:34px;font-weight:700;color:#E6FBEA">412,806</div><div style="font-size:12px;color:#7FA68A;margin-top:6px">tokens scouted</div></div>
+      <div style="background:#06140B;padding:26px 26px"><div style="font-size:34px;font-weight:700;color:#00C805">9,314</div><div style="font-size:12px;color:#7FA68A;margin-top:6px">rugs caught before collapse</div></div>
+      <div style="background:#06140B;padding:26px 26px"><div style="font-size:34px;font-weight:700;color:#E6FBEA">1.2M</div><div style="font-size:12px;color:#7FA68A;margin-top:6px">wallets tracked</div></div>
+      <div style="background:#06140B;padding:26px 26px"><div style="font-size:34px;font-weight:700;color:#FF3B30">3,908</div><div style="font-size:12px;color:#7FA68A;margin-top:6px">deployers on the rap sheet</div></div>
+    </div>
+  </div>
+
+  <div data-screen-label="What it sees" style="border-bottom:1px solid #164A2A">
+    <div style="max-width:1240px;margin:0 auto;padding:88px 32px">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:34px">
+        <span style="font-family:'UnifrakturCook',serif;font-size:34px;color:#E6FBEA">ii.</span>
+        <h2 style="margin:0;font-size:28px;line-height:36px;font-weight:600">What it sees</h2>
+        <span style="font-size:13px;color:#7FA68A;margin-left:auto">31 modules run on every scan</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:132px;gap:14px">
+        <div style="grid-column:span 3;grid-row:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:26px;display:flex;flex-direction:column">
+          <div style="font-size:20px;font-weight:600;margin-bottom:4px">Contract security</div>
+          <div style="font-size:13px;color:#7FA68A;margin-bottom:18px">Read the trap before you step in it.</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:auto">
+            <sc-for list="{{ capSecurity }}" as="c" hint-placeholder-count="6"><span style="font-size:11px;color:#E6FBEA;border:1px solid #164A2A;padding:5px 9px;border-radius:3px;background:#06140B">{{ c }}</span></sc-for>
+          </div>
+        </div>
+        <div style="grid-column:span 3;grid-row:span 2;background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:26px;display:flex;flex-direction:column">
+          <div style="font-size:20px;font-weight:600;margin-bottom:4px">Holder forensics</div>
+          <div style="font-size:13px;color:#7FA68A;margin-bottom:18px">Count the hands on the bag, and who funds them.</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:auto">
+            <sc-for list="{{ capHolders }}" as="c" hint-placeholder-count="7"><span style="font-size:11px;color:#E6FBEA;border:1px solid #164A2A;padding:5px 9px;border-radius:3px;background:#06140B">{{ c }}</span></sc-for>
+          </div>
+        </div>
+        <div style="grid-column:span 2;grid-row:span 2;background:#06140B;border:1px solid #164A2A;border-radius:8px;padding:26px;display:flex;flex-direction:column">
+          <div style="font-size:20px;font-weight:600;margin-bottom:4px">Launch forensics</div>
+          <div style="font-size:13px;color:#7FA68A;margin-bottom:18px">Who sniped, who bundled, who paid for it.</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:auto">
+            <sc-for list="{{ capLaunch }}" as="c" hint-placeholder-count="5"><span style="font-size:11px;color:#E6FBEA;border:1px solid #164A2A;padding:5px 9px;border-radius:3px;background:#0A1F12">{{ c }}</span></sc-for>
+          </div>
+        </div>
+        <div style="grid-column:span 4;grid-row:span 1;background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:22px 26px;display:flex;align-items:center;gap:26px">
+          <div style="min-width:180px"><div style="font-size:20px;font-weight:600">The moat</div><div style="font-size:13px;color:#7FA68A">Memory the lords cannot buy.</div></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ capMoat }}" as="c" hint-placeholder-count="4"><span style="font-size:11px;color:#E6FBEA;border:1px solid #164A2A;padding:5px 9px;border-radius:3px;background:#06140B">{{ c }}</span></sc-for>
+          </div>
+        </div>
+        <div style="grid-column:span 4;grid-row:span 1;background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:22px 26px;display:flex;align-items:center;gap:26px">
+          <div style="min-width:180px"><div style="font-size:20px;font-weight:600">Discovery</div><div style="font-size:13px;color:#7FA68A">Every fresh track, already scored.</div></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ capDiscovery }}" as="c" hint-placeholder-count="3"><span style="font-size:11px;color:#E6FBEA;border:1px solid #164A2A;padding:5px 9px;border-radius:3px;background:#06140B">{{ c }}</span></sc-for>
+          </div>
+        </div>
+        <div style="grid-column:span 2;grid-row:span 1;background:#0A1F12;border:1px solid #164A2A;border-radius:8px;padding:22px 26px;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:13px;color:#7FA68A;line-height:20px">Every module returns raw evidence. No black boxes, no vibes.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <div data-screen-label="How it works" style="border-bottom:1px solid #164A2A">
+    <div style="max-width:1240px;margin:0 auto;padding:88px 32px;display:grid;grid-template-columns:6fr 5fr;gap:56px;align-items:start">
+      <div>
+        <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:34px">
+          <span style="font-family:'UnifrakturCook',serif;font-size:34px;color:#E6FBEA">iii.</span>
+          <h2 style="margin:0;font-size:28px;line-height:36px;font-weight:600">How it works</h2>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <div style="display:grid;grid-template-columns:44px 1fr;gap:18px;padding:20px 0;border-bottom:1px solid #164A2A">
+            <div style="color:#D4A937;font-size:18px;font-weight:700">❯ 1</div>
+            <div><div style="font-size:18px;font-weight:600;margin-bottom:4px">Paste a contract.</div><div style="font-size:14px;line-height:22px;color:#7FA68A;font-family:Inter,sans-serif">Any Robinhood Chain token address, from anywhere in the product.</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:44px 1fr;gap:18px;padding:20px 0;border-bottom:1px solid #164A2A">
+            <div style="color:#D4A937;font-size:18px;font-weight:700">❯ 2</div>
+            <div><div style="font-size:18px;font-weight:600;margin-bottom:4px">Thirty one modules run at once.</div><div style="font-size:14px;line-height:22px;color:#7FA68A;font-family:Inter,sans-serif">Contract, holders, launch, liquidity, creator, funding. Under two seconds.</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:44px 1fr;gap:18px;padding:20px 0">
+            <div style="color:#D4A937;font-size:18px;font-weight:700">❯ 3</div>
+            <div><div style="font-size:18px;font-weight:600;margin-bottom:4px">Get a verdict from 0 to 100.</div><div style="font-size:14px;line-height:22px;color:#7FA68A;font-family:Inter,sans-serif">With every piece of evidence shown. Challenge any line of it.</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:8px;overflow:hidden">
+        <div style="padding:12px 18px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:10px;font-size:11px;color:#7FA68A"><span style="color:#D4A937">❯</span> scan $SHRF · sheriffcoin · 7h old</div>
+        <div style="padding:22px 18px;display:flex;gap:20px;align-items:center;border-bottom:1px solid #164A2A">
+          <div style="text-align:center;min-width:96px"><div style="font-size:44px;font-weight:700;color:#FF3B30;line-height:1">66</div><div style="font-size:10px;color:#7FA68A;margin-top:4px">rug score</div></div>
+          <div style="flex:1">
+            <div style="display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:3px;background:#FF3B30;color:#0A1F12;margin-bottom:8px">High risk</div>
+            <div style="font-size:13px;line-height:19px;color:#E6FBEA">Deployer has three confirmed rugs. Top ten holds 52 percent sybil adjusted.</div>
+            <div style="font-size:11px;color:#496552;margin-top:6px">confidence: high · 31/31 modules reported</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#164A2A">
+          <div style="background:#0D2A19;padding:10px 18px;display:flex;justify-content:space-between;font-size:12px"><span style="color:#7FA68A">honeypot sim</span><span style="color:#00C805">✓ sell ok</span></div>
+          <div style="background:#0D2A19;padding:10px 18px;display:flex;justify-content:space-between;font-size:12px"><span style="color:#7FA68A">deployer</span><span style="color:#FF3B30">✕ 3 rugs</span></div>
+          <div style="background:#0D2A19;padding:10px 18px;display:flex;justify-content:space-between;font-size:12px"><span style="color:#7FA68A">bundles</span><span style="color:#FF3B30">✕ 22%</span></div>
+          <div style="background:#0D2A19;padding:10px 18px;display:flex;justify-content:space-between;font-size:12px"><span style="color:#7FA68A">LP status</span><span style="color:#FFB020">! unlocked</span></div>
+        </div>
+        <div style="padding:10px 18px;font-size:10px;color:#496552;border-top:1px solid #164A2A">Not financial advice. DYOR.</div>
+      </div>
+    </div>
+  </div>
+
+  <div data-screen-label="Pulse preview" style="border-bottom:1px solid #164A2A;background:#06140B">
+    <div style="max-width:1240px;margin:0 auto;padding:88px 32px">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:8px">
+        <span style="font-family:'UnifrakturCook',serif;font-size:34px;color:#E6FBEA">iv.</span>
+        <h2 style="margin:0;font-size:28px;line-height:36px;font-weight:600">The Pulse board</h2>
+        <span style="display:inline-block;width:8px;height:14px;background:#00C805;animation:blink 1.1s steps(1) infinite"></span>
+      </div>
+      <p style="margin:0 0 30px 52px;font-size:14px;color:#7FA68A;font-family:Inter,sans-serif;max-width:560px">Every new launch on Robinhood Chain, scored before you ever click it. Known scam templates are demoted on sight.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;padding:0 2px 10px">new · minutes old</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ pulseNew }}" as="p" hint-placeholder-count="3">
+              <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:4px;padding:14px 16px" style-hover="border-color:#2B7A3D">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:14px;font-weight:700">{{ p.t }}</span><span style="font-size:11px;color:#7FA68A">{{ p.age }}</span><span style="margin-left:auto;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ p.bg }};color:{{ p.fg }}">{{ p.sc }} · {{ p.band }}</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10px;color:#7FA68A"><span>hp: <span style="color:{{ p.hpc }}">{{ p.hp }}</span></span><span>dep: {{ p.dep }}</span><span>bundle {{ p.bu }}</span><span>fresh {{ p.fr }}</span><span>top10 {{ p.top }}</span><span>lp: {{ p.lp }}</span><span>{{ p.soc }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;padding:0 2px 10px">graduating · on the curve</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ pulseGrad }}" as="p" hint-placeholder-count="3">
+              <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:4px;padding:14px 16px" style-hover="border-color:#2B7A3D">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:14px;font-weight:700">{{ p.t }}</span><span style="font-size:11px;color:#7FA68A">{{ p.age }}</span><span style="margin-left:auto;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ p.bg }};color:{{ p.fg }}">{{ p.sc }} · {{ p.band }}</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10px;color:#7FA68A"><span>hp: <span style="color:{{ p.hpc }}">{{ p.hp }}</span></span><span>dep: {{ p.dep }}</span><span>bundle {{ p.bu }}</span><span>fresh {{ p.fr }}</span><span>top10 {{ p.top }}</span><span>lp: {{ p.lp }}</span><span>{{ p.soc }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;padding:0 2px 10px">graduated · full pool</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ pulseDone }}" as="p" hint-placeholder-count="3">
+              <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:4px;padding:14px 16px" style-hover="border-color:#2B7A3D">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:14px;font-weight:700">{{ p.t }}</span><span style="font-size:11px;color:#7FA68A">{{ p.age }}</span><span style="margin-left:auto;font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;background:{{ p.bg }};color:{{ p.fg }}">{{ p.sc }} · {{ p.band }}</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10px;color:#7FA68A"><span>hp: <span style="color:{{ p.hpc }}">{{ p.hp }}</span></span><span>dep: {{ p.dep }}</span><span>bundle {{ p.bu }}</span><span>fresh {{ p.fr }}</span><span>top10 {{ p.top }}</span><span>lp: {{ p.lp }}</span><span>{{ p.soc }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div data-screen-label="Rug receipts" style="border-bottom:1px solid #164A2A;position:relative;overflow:hidden">
+    <svg width="700" height="700" viewBox="0 0 700 700" style="position:absolute;left:-220px;bottom:-300px;opacity:.5;pointer-events:none">
+      <ellipse cx="350" cy="350" rx="80" ry="64" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+      <ellipse cx="350" cy="350" rx="150" ry="122" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+      <ellipse cx="350" cy="350" rx="225" ry="186" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+      <ellipse cx="350" cy="350" rx="305" ry="255" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+    </svg>
+    <div style="max-width:1240px;margin:0 auto;padding:88px 32px;display:grid;grid-template-columns:5fr 7fr;gap:56px;align-items:center;position:relative">
+      <div>
+        <div style="font-size:10px;letter-spacing:.18em;color:#7FA68A;text-transform:uppercase;margin-bottom:14px">rug receipts</div>
+        <h2 style="margin:0 0 16px;font-size:28px;line-height:36px;font-weight:600">We keep the receipts. Every one.</h2>
+        <p style="margin:0 0 20px;font-size:15px;line-height:24px;color:#7FA68A;font-family:Inter,sans-serif;max-width:420px">When a token collapses, HOOD publishes what it saw and when it saw it. The score at first scan. The hours of warning. The wallets already on the sheet.</p>
+        <a href="#" onClick="{{ goSignin }}" style="font-size:13px;color:#00C805">Browse the gallery ❯</a>
+      </div>
+      <div style="background:#06140B;border:1px solid #8B1E1A;border-radius:8px;overflow:hidden">
+        <div style="padding:14px 22px;border-bottom:1px solid #8B1E1A;display:flex;align-items:center;gap:12px">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.2em;color:#FF3B30;text-transform:uppercase">rugged</span>
+          <span style="font-size:16px;font-weight:700">$CURFEW · Curfew Bell</span>
+          <span style="margin-left:auto;font-size:11px;color:#7FA68A">receipt #9314</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#164A2A;border-bottom:1px solid #164A2A">
+          <div style="background:#06140B;padding:16px 22px"><div style="font-size:26px;font-weight:700;color:#FF3B30">88</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">score at first scan</div></div>
+          <div style="background:#06140B;padding:16px 22px"><div style="font-size:26px;font-weight:700;color:#E6FBEA">6h 12m</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">warning before collapse</div></div>
+          <div style="background:#06140B;padding:16px 22px"><div style="font-size:26px;font-weight:700;color:#E6FBEA">61</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">wallets already known</div></div>
+        </div>
+        <div style="padding:18px 22px">
+          <div style="display:flex;align-items:flex-end;gap:3px;height:90px">
+            <sc-for list="{{ cliffBars }}" as="b" hint-placeholder-count="20">
+              <div style="width:10px;background:{{ b.c }};height:{{ b.h }}px"></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#496552;margin-top:8px"><span>first scan · flagged extreme</span><span>LP pulled · minus 98 percent</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div data-screen-label="Surfaces and builders" style="border-bottom:1px solid #164A2A">
+    <div style="max-width:1240px;margin:0 auto;padding:88px 32px;display:grid;grid-template-columns:5fr 7fr;gap:56px;align-items:start">
+      <div>
+        <div style="font-size:10px;letter-spacing:.18em;color:#7FA68A;text-transform:uppercase;margin-bottom:14px">every surface</div>
+        <h2 style="margin:0 0 16px;font-size:28px;line-height:36px;font-weight:600">One subscription. Five roads in.</h2>
+        <div style="display:flex;flex-direction:column;border-top:1px solid #164A2A">
+          <div style="padding:14px 0;border-bottom:1px solid #164A2A;display:flex;justify-content:space-between;font-size:14px"><span>Web terminal</span><span style="color:#7FA68A;font-size:12px">the full instrument</span></div>
+          <div style="padding:14px 0;border-bottom:1px solid #164A2A;display:flex;justify-content:space-between;font-size:14px"><span>Telegram bot</span><span style="color:#7FA68A;font-size:12px">scan from any chat</span></div>
+          <div style="padding:14px 0;border-bottom:1px solid #164A2A;display:flex;justify-content:space-between;font-size:14px"><span>Public API</span><span style="color:#7FA68A;font-size:12px">build on the moat</span></div>
+          <div style="padding:14px 0;border-bottom:1px solid #164A2A;display:flex;justify-content:space-between;font-size:14px"><span>Chrome extension</span><span style="color:#7FA68A;font-size:12px">verdicts on every dex page</span></div>
+          <div style="padding:14px 0;display:flex;justify-content:space-between;font-size:14px"><span>Mobile</span><span style="color:#7FA68A;font-size:12px">arrows in your pocket</span></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;letter-spacing:.18em;color:#7FA68A;text-transform:uppercase;margin-bottom:14px">for builders</div>
+        <h2 style="margin:0 0 16px;font-size:28px;line-height:36px;font-weight:600">One call. Full verdict. Under two seconds.</h2>
+        <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#7FA68A;font-family:Inter,sans-serif">A rug score and every signal behind it, plus webhooks for score changes and LP pulls.</p>
+        <div style="background:#06140B;border:1px solid #164A2A;border-radius:4px;font-size:12px;line-height:20px;overflow:hidden">
+          <div style="padding:8px 16px;border-bottom:1px solid #164A2A;font-size:10px;color:#496552">POST /v1/analyze</div>
+          <pre style="margin:0;padding:16px;overflow:auto;font-family:'JetBrains Mono',monospace;color:#E6FBEA">curl -X POST https://api.hood.sh/v1/analyze \
+  -H "Authorization: Bearer ht_live_4f2a…" \
+  -d '{"token": "0x8f3c…a2e1"}'
+
+<span style="color:#496552">// 1.4s later</span>
+{ "score": 66, "band": "high",
+  "honeypot": false, "bundles": 0.22,
+  "deployer": { "rugs": 3, "launches": 11 },
+  "lp": { "locked": false } }</pre>
+        </div>
+        <div style="margin-top:12px;font-size:12px"><a href="HOOD App.dc.html#docs" style="color:#00C805">Read the docs ❯</a></div>
+      </div>
+    </div>
+  </div>
+
+  <div data-screen-label="Pricing" style="border-bottom:1px solid #164A2A;background:#06140B">
+    <div style="max-width:1240px;margin:0 auto;padding:88px 32px">
+      <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:10px">
+        <span style="font-family:'UnifrakturCook',serif;font-size:34px;color:#E6FBEA">v.</span>
+        <h2 style="margin:0;font-size:28px;line-height:36px;font-weight:600">Pick your rank</h2>
+        <span style="margin-left:auto;font-size:12px;color:#D4A937">Founding crew: Legend locked at $59 for life. {{ seats }} seats left.</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1.15fr;gap:14px;margin:30px 0 40px;align-items:stretch">
+        <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:24px;display:flex;flex-direction:column">
+          <div style="font-size:16px;font-weight:700;margin-bottom:2px">Outlaw</div>
+          <div style="font-size:26px;font-weight:700;margin:10px 0 2px">$0</div>
+          <div style="font-size:11px;color:#7FA68A;margin-bottom:16px">forever</div>
+          <div style="font-size:12px;line-height:22px;color:#7FA68A;border-top:1px solid #164A2A;padding-top:14px">3 scans a day<br>core security modules<br>pulse board, delayed<br>1 arrow</div>
+          <a href="#" onClick="{{ goSignin }}" style="margin-top:auto;text-align:center;font-size:12px;color:#E6FBEA;border:1px solid #164A2A;padding:9px;border-radius:3px;margin-top:18px" style-hover="border-color:#00C805">Join the outlaws</a>
+        </div>
+        <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:24px;display:flex;flex-direction:column">
+          <div style="font-size:16px;font-weight:700;margin-bottom:2px">Yeoman</div>
+          <div style="font-size:26px;font-weight:700;margin:10px 0 2px">$15</div>
+          <div style="font-size:11px;color:#7FA68A;margin-bottom:16px">per month</div>
+          <div style="font-size:12px;line-height:22px;color:#7FA68A;border-top:1px solid #164A2A;padding-top:14px">unlimited scans<br>holders + launch modules<br>live pulse + filters<br>10 arrows, telegram delivery</div>
+          <a href="#" onClick="{{ goSignin }}" style="margin-top:auto;text-align:center;font-size:12px;color:#E6FBEA;border:1px solid #164A2A;padding:9px;border-radius:3px;margin-top:18px" style-hover="border-color:#00C805">Take the bow</a>
+        </div>
+        <div style="background:#0D2A19;border:1px solid #2B7A3D;border-radius:8px;padding:24px;display:flex;flex-direction:column">
+          <div style="font-size:16px;font-weight:700;margin-bottom:2px">Merry Men</div>
+          <div style="font-size:26px;font-weight:700;margin:10px 0 2px">$39</div>
+          <div style="font-size:11px;color:#7FA68A;margin-bottom:16px">per month</div>
+          <div style="font-size:12px;line-height:22px;color:#7FA68A;border-top:1px solid #164A2A;padding-top:14px">everything in Yeoman<br>sheriff watch + the heist<br>100 arrows, webhooks<br>saved presets + column alerts</div>
+          <a href="#" onClick="{{ goSignin }}" style="margin-top:auto;text-align:center;font-size:12px;color:#0A1F12;background:#00C805;padding:9px;border-radius:3px;margin-top:18px;font-weight:700">Join the crew</a>
+        </div>
+        <div style="background:#06140B;border:1px solid #D4A937;border-radius:8px;padding:24px;display:flex;flex-direction:column;position:relative">
+          <div style="position:absolute;top:-1px;right:16px;background:#D4A937;color:#0A1F12;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:3px 8px;border-radius:0 0 3px 3px">the vault</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:2px;color:#D4A937">Legend of Sherwood</div>
+          <div style="font-size:26px;font-weight:700;margin:10px 0 2px">$99</div>
+          <div style="font-size:11px;color:#7FA68A;margin-bottom:16px">per month · founding $59 for life</div>
+          <div style="font-size:12px;line-height:22px;color:#7FA68A;border-top:1px solid #164A2A;padding-top:14px">all deep modules: insiders, money flow<br>time travel + magic nodes<br>every surface, one seat<br>unlimited arrows, priority lanes</div>
+          <a href="#" onClick="{{ goSignin }}" style="margin-top:auto;text-align:center;font-size:12px;font-weight:700;color:#0A1F12;background:#D4A937;padding:9px;border-radius:3px;margin-top:18px" style-hover="background:#8A6D1F;color:#E6FBEA">Open the vault</a>
+        </div>
+      </div>
+      <div style="border:1px solid #164A2A;border-radius:4px;overflow:hidden">
+        <div style="padding:10px 18px;background:#0A1F12;border-bottom:1px solid #164A2A;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A">developer api tiers</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:#164A2A">
+          <div style="background:#0A1F12;padding:16px 18px;font-size:12px"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Free</div><div style="color:#7FA68A;line-height:19px">100 req/day<br>core endpoints</div></div>
+          <div style="background:#0A1F12;padding:16px 18px;font-size:12px"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Starter · $29</div><div style="color:#7FA68A;line-height:19px">10k req/mo<br>+ webhooks</div></div>
+          <div style="background:#0A1F12;padding:16px 18px;font-size:12px"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Pro · $149</div><div style="color:#7FA68A;line-height:19px">100k req/mo<br>all 21 endpoints</div></div>
+          <div style="background:#0A1F12;padding:16px 18px;font-size:12px"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Enterprise</div><div style="color:#7FA68A;line-height:19px">custom limits<br>SLA + dedicated lane</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div data-screen-label="Merry Men community" style="border-bottom:1px solid #164A2A">
+    <div style="max-width:1240px;margin:0 auto;padding:88px 32px;display:grid;grid-template-columns:7fr 5fr;gap:56px;align-items:center">
+      <div>
+        <div style="font-size:10px;letter-spacing:.18em;color:#7FA68A;text-transform:uppercase;margin-bottom:14px">merry men</div>
+        <h2 style="margin:0 0 16px;font-family:'UnifrakturCook',serif;font-size:44px;line-height:48px;font-weight:700">Ride with the crew.</h2>
+        <p style="margin:0 0 24px;font-size:15px;line-height:24px;color:#7FA68A;font-family:Inter,sans-serif;max-width:480px">A community that posts receipts, not rumors. Shared signals, verified calls, and a Telegram crew that catches what one pair of eyes misses.</p>
+        <a href="#" onClick="{{ goSignin }}" style="font-size:13px;color:#E6FBEA;border:1px solid #164A2A;padding:11px 18px;border-radius:3px" style-hover="border-color:#00C805">Join the Merry Men</a>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:4px;padding:14px 16px;font-size:12px"><span style="color:#00C805;font-weight:700">littlejohn.eth</span> <span style="color:#496552">· 12m</span><div style="color:#E6FBEA;margin-top:6px;line-height:19px">$SCARLET deployer wallet just moved 40 SOL to a fresh address. Arrow loosed, receipts attached.</div></div>
+        <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:4px;padding:14px 16px;font-size:12px;margin-left:28px"><span style="color:#00C805;font-weight:700">tuck_reads</span> <span style="color:#496552">· 41m</span><div style="color:#E6FBEA;margin-top:6px;line-height:19px">Called $CURFEW at score 88, six hours before the pull. Screenshot in the room.</div></div>
+      </div>
+    </div>
+  </div>
+<!--HOME2-->
+</div>
+</sc-if>
+
+<sc-if value="{{ isBlog }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Blog index" style="max-width:1240px;margin:0 auto;padding:64px 32px 96px">
+  <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:36px">
+    <span style="font-family:'UnifrakturCook',serif;font-size:40px">Field notes</span>
+    <span style="font-size:13px;color:#7FA68A">trading and security guides from the greenwood</span>
+  </div>
+  <div style="display:grid;grid-template-columns:7fr 5fr;gap:14px">
+    <a href="#" onClick="{{ goArticle }}" style="display:block;background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:34px;color:#E6FBEA;position:relative;overflow:hidden" style-hover="border-color:#2B7A3D">
+      <svg width="420" height="420" viewBox="0 0 420 420" style="position:absolute;right:-140px;top:-140px;opacity:.5;pointer-events:none"><ellipse cx="210" cy="210" rx="70" ry="56" fill="none" stroke="#164A2A" stroke-width="1"></ellipse><ellipse cx="210" cy="210" rx="130" ry="106" fill="none" stroke="#164A2A" stroke-width="1"></ellipse><ellipse cx="210" cy="210" rx="190" ry="158" fill="none" stroke="#164A2A" stroke-width="1"></ellipse></svg>
+      <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#00C805;margin-bottom:14px">security · lead note</div>
+      <div style="font-size:28px;line-height:36px;font-weight:600;max-width:440px;position:relative">How bundles hide: reading a launch before the snipers sell</div>
+      <div style="font-size:11px;color:#496552;margin-top:18px">jul 02, 2026 · 9 min</div>
+    </a>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <a href="#" onClick="{{ goArticle }}" style="display:block;background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:20px 24px;color:#E6FBEA" style-hover="border-color:#2B7A3D">
+        <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;margin-bottom:8px">forensics</div>
+        <div style="font-size:16px;line-height:23px;font-weight:600">The rap sheet method: why unknown is not the same as clean</div>
+        <div style="font-size:11px;color:#496552;margin-top:10px">jun 24, 2026 · 6 min</div>
+      </a>
+      <a href="#" onClick="{{ goArticle }}" style="display:block;background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:20px 24px;color:#E6FBEA" style-hover="border-color:#2B7A3D">
+        <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;margin-bottom:8px">trading</div>
+        <div style="font-size:16px;line-height:23px;font-weight:600">Exit liquidity math for people who hate math</div>
+        <div style="font-size:11px;color:#496552;margin-top:10px">jun 17, 2026 · 7 min</div>
+      </a>
+      <a href="#" onClick="{{ goArticle }}" style="display:block;background:#0D2A19;border:1px solid #164A2A;border-radius:8px;padding:20px 24px;color:#E6FBEA" style-hover="border-color:#2B7A3D">
+        <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;margin-bottom:8px">security</div>
+        <div style="font-size:16px;line-height:23px;font-weight:600">Proxy upgrades: the rug that happens after you buy</div>
+        <div style="font-size:11px;color:#496552;margin-top:10px">jun 09, 2026 · 5 min</div>
+      </a>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isArticle }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Article template" style="max-width:760px;margin:0 auto;padding:64px 32px 96px">
+  <a href="#" onClick="{{ goBlog }}" style="font-size:12px;color:#7FA68A">❮ field notes</a>
+  <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#00C805;margin:28px 0 14px">security</div>
+  <h1 style="margin:0 0 14px;font-size:40px;line-height:48px;font-weight:700">How bundles hide: reading a launch before the snipers sell</h1>
+  <div style="font-size:12px;color:#496552;margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid #164A2A">by the crew · jul 02, 2026 · 9 min read</div>
+  <div style="font-family:Inter,sans-serif;font-size:16px;line-height:26px;color:#E6FBEA">
+    <p style="margin:0 0 20px">A bundle is a set of buys placed in the same block as the launch, funded from the same purse, dressed up as organic demand. On a chart it looks like a crowd. On chain it is one person wearing forty coats.</p>
+    <p style="margin:0 0 20px;color:#7FA68A">The trick is not spotting the buys. Anyone can see block zero. The trick is proving the coats belong to one owner before they sell into you.</p>
+    <div style="background:#06140B;border:1px solid #164A2A;border-radius:4px;padding:16px 18px;margin:0 0 20px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:20px;color:#E6FBEA">bundle check: 14 wallets · block 0 buys<br>funding origin: 1 hop from wallet 0x3d…9c<br><span style="color:#FF3B30">verdict: single funder. 31 percent of supply.</span></div>
+    <h3 style="margin:32px 0 12px;font-family:'JetBrains Mono',monospace;font-size:20px;line-height:28px;font-weight:600">Follow the funding, not the timing</h3>
+    <p style="margin:0 0 20px">Timing is circumstantial. Funding is a confession. When fourteen fresh wallets all trace back one hop to the same address, and that address traces to the deployer, the launch is a stage play. HOOD runs this trace on every scan and prices it into the score.</p>
+    <p style="margin:0 0 20px;color:#7FA68A">Historical bundles matter too. A deployer who bundled the last three launches will bundle the fourth. The rap sheet remembers so you do not have to.</p>
+  </div>
+  <div style="margin-top:36px;padding-top:20px;border-top:1px solid #164A2A;font-size:11px;color:#496552">Not financial advice. DYOR.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isToken }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Public token result" style="max-width:860px;margin:0 auto;padding:64px 32px 96px">
+  <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px"><span style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A">public scan result · shareable</span><span style="margin-left:auto;font-size:11px;color:#496552">scanned 2m ago</span></div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:8px;overflow:hidden">
+    <div style="padding:20px 26px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:14px">
+      <span style="font-size:22px;font-weight:700">$SHRF</span><span style="font-size:13px;color:#7FA68A">Sheriffcoin · 0x8f3c…a2e1</span>
+      <a href="#" onClick="{{ goSignin }}" style="margin-left:auto;font-size:12px;font-weight:700;color:#0A1F12;background:#D4A937;padding:8px 14px;border-radius:3px" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Run your own scan</a>
+    </div>
+    <div style="padding:26px;display:flex;gap:28px;align-items:center;border-bottom:1px solid #164A2A">
+      <div style="text-align:center;min-width:120px;border:1px solid #164A2A;border-radius:4px;padding:18px 14px;background:#06140B">
+        <div style="font-size:52px;font-weight:700;color:#FF3B30;line-height:1">66</div>
+        <div style="height:4px;background:#164A2A;border-radius:2px;margin:12px 0 6px;overflow:hidden"><div style="width:66%;height:4px;background:#FF3B30"></div></div>
+        <div style="font-size:10px;color:#7FA68A">rug score / 100</div>
+      </div>
+      <div>
+        <div style="display:inline-block;font-size:12px;font-weight:700;padding:5px 12px;border-radius:3px;background:#FF3B30;color:#0A1F12;margin-bottom:10px">High risk</div>
+        <div style="font-size:15px;line-height:23px;max-width:440px">Deployer has three confirmed rugs. Top ten holds 52 percent sybil adjusted. LP is unlocked.</div>
+        <div style="font-size:11px;color:#496552;margin-top:8px">confidence: high · 31/31 modules · not financial advice. DYOR.</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:#164A2A;border-bottom:1px solid #164A2A">
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:16px;font-weight:600">$98k</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">liquidity</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:16px;font-weight:600">1,942</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">holders</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:16px;font-weight:600;color:#FF3B30">52%</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">top 10, sybil adj</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:16px;font-weight:600;color:#FFB020">unlocked</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">LP status</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:16px;font-weight:600">$1.4M</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">market cap</div></div>
+      <div style="background:#0D2A19;padding:14px"><div style="font-size:16px;font-weight:600">7h</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">age</div></div>
+    </div>
+    <div style="padding:16px 26px;display:flex;flex-direction:column;gap:0">
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">honeypot simulation</span><span style="color:#00C805">✓ sell executed · 4.1% tax</span></div>
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">deployer reputation</span><a href="#" onClick="{{ goDeployer }}" style="color:#FF3B30">✕ 3 confirmed rugs · view rap sheet</a></div>
+      <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #164A2A;font-size:13px"><span style="color:#7FA68A">bundles at launch</span><span style="color:#FF3B30">✕ 22% of supply, single funder</span></div>
+      <div style="display:flex;justify-content:space-between;padding:9px 0;font-size:13px"><span style="color:#7FA68A">socials</span><span style="color:#FFB020">! x only, 2 days old</span></div>
+    </div>
+  </div>
+  <div style="margin-top:16px;font-size:12px;color:#7FA68A">Full evidence, holder graphs, and money flow live in the terminal. <a href="#" onClick="{{ goSignin }}">Enter the Hideout ❯</a></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDeployer }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Public deployer page" style="max-width:860px;margin:0 auto;padding:64px 32px 96px">
+  <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">public deployer record</div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:8px;overflow:hidden">
+    <div style="padding:20px 26px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:14px">
+      <span style="font-size:18px;font-weight:700">0x3d71…f09c</span>
+      <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:3px;background:#8B1E1A;color:#E6FBEA">serial rug flag</span>
+      <span style="margin-left:auto;font-size:11px;color:#496552">first seen mar 2026</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:#164A2A;border-bottom:1px solid #164A2A">
+      <div style="background:#0D2A19;padding:16px 22px"><div style="font-size:24px;font-weight:700">11</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">tokens launched</div></div>
+      <div style="background:#0D2A19;padding:16px 22px"><div style="font-size:24px;font-weight:700;color:#FF3B30">3</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">confirmed rugs</div></div>
+      <div style="background:#0D2A19;padding:16px 22px"><div style="font-size:24px;font-weight:700;color:#FFB020">18%</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">30 day survival</div></div>
+      <div style="background:#0D2A19;padding:16px 22px"><div style="font-size:24px;font-weight:700">2.1d</div><div style="font-size:10px;color:#7FA68A;margin-top:2px">median token life</div></div>
+    </div>
+    <div style="padding:8px 26px 18px">
+      <div style="display:grid;grid-template-columns:1.2fr 1fr .8fr .8fr 1fr;gap:12px;padding:10px 0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>token</span><span>launched</span><span>peak mc</span><span>status</span><span>first scan score</span></div>
+      <sc-for list="{{ depTokens }}" as="d" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:1.2fr 1fr .8fr .8fr 1fr;gap:12px;padding:11px 0;font-size:12px;border-bottom:1px solid #164A2A;align-items:center">
+          <a href="#" onClick="{{ goToken }}" style="color:#00C805;font-weight:600">{{ d.t }}</a><span style="color:#7FA68A">{{ d.dt }}</span><span>{{ d.mc }}</span><span style="color:{{ d.stc }}">{{ d.st }}</span><span style="color:{{ d.scc }}">{{ d.sc }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="margin-top:16px;font-size:12px;color:#7FA68A">Loose an arrow on this deployer's next launch. <a href="#" onClick="{{ goSignin }}">Enter the Hideout ❯</a></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isWallet }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Public wallet rap sheet" style="max-width:860px;margin:0 auto;padding:64px 32px 96px">
+  <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7FA68A;margin-bottom:12px">public wallet rap sheet</div>
+  <div style="background:#0D2A19;border:1px solid #164A2A;border-radius:8px;overflow:hidden">
+    <div style="padding:20px 26px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:18px;font-weight:700">0x91be…44aa</span>
+      <span style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:3px;background:#8B1E1A;color:#E6FBEA">repeat offender</span>
+      <span style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:3px;border:1px solid #FF3B30;color:#FF3B30">sniper</span>
+      <span style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:3px;border:1px solid #FFB020;color:#FFB020">insider</span>
+    </div>
+    <div style="padding:8px 26px 4px">
+      <div style="display:grid;grid-template-columns:1fr .9fr .9fr 1.2fr;gap:12px;padding:10px 0;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#496552;border-bottom:1px solid #164A2A"><span>token</span><span>role flagged</span><span>outcome</span><span>evidence</span></div>
+      <sc-for list="{{ rapRows }}" as="r" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:1fr .9fr .9fr 1.2fr;gap:12px;padding:11px 0;font-size:12px;border-bottom:1px solid #164A2A;align-items:center">
+          <span style="font-weight:600">{{ r.t }}</span><span style="color:#FFB020">{{ r.role }}</span><span style="color:{{ r.oc }}">{{ r.o }}</span><span style="color:#7FA68A">{{ r.e }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="padding:14px 26px;background:#06140B;border-top:1px solid #164A2A;font-size:12px;color:#7FA68A;line-height:19px">Appeared in 23 tokens. 3 confirmed rugs. Note: unknown is not the same as clean. A wallet with no flags may simply be new coats on an old body.</div>
+  </div>
+  <div style="margin-top:16px;font-size:12px;color:#7FA68A">Track this wallet live. <a href="#" onClick="{{ goSignin }}">Enter the Hideout ❯</a></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSignin }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Magic link sign in" style="min-height:70vh;display:flex;align-items:center;justify-content:center;background:#06140B;position:relative;overflow:hidden">
+  <svg width="900" height="700" viewBox="0 0 900 700" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);opacity:.6;pointer-events:none">
+    <ellipse cx="450" cy="350" rx="110" ry="80" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+    <ellipse cx="450" cy="350" rx="200" ry="150" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+    <ellipse cx="450" cy="350" rx="295" ry="224" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+    <ellipse cx="450" cy="350" rx="395" ry="300" fill="none" stroke="#164A2A" stroke-width="1"></ellipse>
+  </svg>
+  <sc-if value="{{ notSent }}" hint-placeholder-val="{{ true }}">
+    <div style="width:400px;background:#0A1F12;border:1px solid #164A2A;border-radius:8px;padding:36px;position:relative">
+      <div style="font-family:'UnifrakturCook',serif;font-size:30px;margin-bottom:6px">Hail, outlaw.</div>
+      <div style="font-size:13px;color:#7FA68A;line-height:20px;margin-bottom:26px">No passwords in the greenwood. We send a magic link. You click it. You are in.</div>
+      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7FA68A;margin-bottom:8px">your email</div>
+      <input type="email" value="{{ email }}" onChange="{{ setEmail }}" placeholder="robin@greenwood.xyz" style="width:100%;box-sizing:border-box;background:#06140B;border:1px solid #164A2A;border-radius:3px;color:#E6FBEA;font-size:14px;padding:12px 14px;outline:none" style-focus="border-color:#00C805">
+      <button onClick="{{ sendLink }}" style="width:100%;margin-top:14px;background:#D4A937;color:#0A1F12;border:none;border-radius:3px;font-size:14px;font-weight:700;padding:13px;cursor:pointer" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Send the magic link</button>
+      <div style="font-size:10px;color:#496552;margin-top:16px;text-align:center">By entering you accept the terms. Not financial advice. DYOR.</div>
+    </div>
+  </sc-if>
+  <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
+    <div style="width:400px;background:#0A1F12;border:1px solid #164A2A;border-radius:8px;padding:36px;position:relative;text-align:center">
+      <div style="font-size:34px;color:#00C805;margin-bottom:10px">✓</div>
+      <div style="font-size:20px;font-weight:600;margin-bottom:8px">Check your post.</div>
+      <div style="font-size:13px;color:#7FA68A;line-height:20px;margin-bottom:26px">A link rides to {{ emailShown }}. It lives for ten minutes, then the trail goes cold.</div>
+      <a href="HOOD App.dc.html" style="display:block;background:#D4A937;color:#0A1F12;border-radius:3px;font-size:14px;font-weight:700;padding:13px" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Enter the Hideout</a>
+      <div style="font-size:11px;color:#496552;margin-top:14px">Wrong address? <a href="#" onClick="{{ goSignin }}" style="color:#7FA68A">Send again.</a></div>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<div style="border-top:1px solid #164A2A;background:#06140B">
+  <div style="max-width:1240px;margin:0 auto;padding:44px 32px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;font-size:12px">
+    <div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px"><span style="font-family:'UnifrakturCook',serif;font-size:20px">Hood</span><span style="font-size:11px;font-weight:700;letter-spacing:.14em;color:#00C805">TERMINAL</span></div>
+      <div style="color:#496552;line-height:18px">Sherwood Signals Ltd. Company no 15382077.<br>Not financial advice. DYOR.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px"><span style="color:#496552;font-size:10px;letter-spacing:.14em;text-transform:uppercase">product</span><a href="#" onClick="{{ goToken }}" style="color:#7FA68A">sample scan</a><a href="#" onClick="{{ goDeployer }}" style="color:#7FA68A">deployer lookup</a><a href="#" onClick="{{ goWallet }}" style="color:#7FA68A">wallet rap sheet</a><a href="HOOD App.dc.html#docs" style="color:#7FA68A">api docs</a></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><span style="color:#496552;font-size:10px;letter-spacing:.14em;text-transform:uppercase">company</span><a href="#" onClick="{{ goBlog }}" style="color:#7FA68A">field notes</a><a href="#" style="color:#7FA68A">terms</a><a href="#" style="color:#7FA68A">privacy</a></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><span style="color:#496552;font-size:10px;letter-spacing:.14em;text-transform:uppercase">crew</span><a href="#" style="color:#7FA68A">telegram</a><a href="#" style="color:#7FA68A">x</a><a href="#" style="color:#7FA68A">github</a></div>
+  </div>
+</div>
+
+
+<sc-if value="{{ scanModalOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(6,20,11,.82);z-index:120" onClick="{{ closeModal }}"></div>
+  <div data-screen-label="Free scan modal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(720px,92vw);max-height:86vh;overflow:auto;background:#06140B;border:1px solid #164A2A;z-index:121">
+    <div style="padding:10px 16px;border-bottom:1px solid #164A2A;display:flex;align-items:center;gap:10px;font-size:11px">
+      <span style="color:#496552">┌ hood terminal · free scan</span>
+      <button onClick="{{ closeModal }}" style="margin-left:auto;background:transparent;border:1px solid #164A2A;color:#7FA68A;font-size:11px;padding:4px 10px;border-radius:3px;cursor:pointer" style-hover="border-color:#00C805">✕ close</button>
+    </div>
+    <sc-if value="{{ modalScanning }}" hint-placeholder-val="{{ true }}">
+      <div style="position:relative;overflow:hidden;z-index:0;min-height:340px;padding:16px 18px;font-size:12px;line-height:22px">
+        <div class="bin-rain" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1">
+          <sc-for list="{{ rainCols }}" as="rc" hint-placeholder-count="8">
+            <div style="position:absolute;left:{{ rc.x }};top:0;font-size:12px;line-height:19px;color:#2B7A3D;opacity:{{ rc.op }};white-space:pre;animation:rainfall {{ rc.dur }} linear {{ rc.del }} infinite">{{ rc.txt }}</div>
+          </sc-for>
+        </div>
+        <div class="scan-sweep" style="position:absolute;left:0;right:0;top:-3px;height:2px;background:#00C805;opacity:.2;animation:sweep 2.4s linear infinite;pointer-events:none"></div>
+        <div style="color:#7FA68A;margin-bottom:10px"><span style="color:#D4A937;font-weight:700">❯</span> scan 0x8f3c…a2e1</div>
+        <sc-for list="{{ modalLog }}" as="l" hint-placeholder-count="0">
+          <div style="display:flex;gap:12px"><span style="color:#7FA68A;width:130px;flex:none">{{ l.m }}</span><span style="color:{{ l.c }};width:56px;flex:none">{{ l.tag }}</span><span style="color:#E6FBEA;min-width:0">{{ l.msg }}</span></div>
+        </sc-for>
+        <div style="margin-top:8px"><span style="display:inline-block;width:8px;height:14px;background:#00C805;animation:blink .8s steps(1) infinite"></span></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ modalResult }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:16px 18px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+          <span style="font-size:20px;font-weight:700">$NIGHTJAR</span>
+          <span style="font-size:11px;color:#7FA68A">Nightjar · 0x8f3c…a2e1 · archery.fun launch</span>
+        </div>
+        <div style="background:#0D2A19;border:1px solid #164A2A;padding:16px;display:flex;gap:18px;align-items:center;margin-bottom:1px">
+          <div style="text-align:center;min-width:80px">
+            <div style="font-size:44px;font-weight:700;color:#FF3B30;line-height:1">74</div>
+            <div style="font-size:9px;color:#7FA68A;margin-top:4px">rug score / 100</div>
+          </div>
+          <div style="flex:1">
+            <span style="display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#FF3B30;color:#0A1F12">High risk</span>
+            <div style="font-size:12px;line-height:18px;color:#E6FBEA;margin-top:8px">Sells fine today. The deployer and the bundle are the problem.</div>
+            <div style="font-size:10px;color:#496552;margin-top:5px">confidence: medium · 29/31 modules</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#164A2A;border:1px solid #164A2A;margin-bottom:1px">
+          <div style="background:#0D2A19;padding:12px"><div style="font-size:15px;font-weight:600">$184k</div><div style="font-size:9px;color:#7FA68A;margin-top:2px">liquidity</div></div>
+          <div style="background:#0D2A19;padding:12px"><div style="font-size:15px;font-weight:600">1,208</div><div style="font-size:9px;color:#7FA68A;margin-top:2px">holders</div></div>
+          <div style="background:#0D2A19;padding:12px"><div style="font-size:15px;font-weight:600;color:#FF3B30">57%</div><div style="font-size:9px;color:#7FA68A;margin-top:2px">top 10, sybil adj</div></div>
+          <div style="background:#0D2A19;padding:12px"><div style="font-size:15px;font-weight:600;color:#00C805">locked 30d</div><div style="font-size:9px;color:#7FA68A;margin-top:2px">LP status</div></div>
+          <div style="background:#0D2A19;padding:12px"><div style="font-size:15px;font-weight:600">$2.1M</div><div style="font-size:9px;color:#7FA68A;margin-top:2px">market cap</div></div>
+          <div style="background:#0D2A19;padding:12px"><div style="font-size:15px;font-weight:600">3d 4h</div><div style="font-size:9px;color:#7FA68A;margin-top:2px">age</div></div>
+        </div>
+        <div style="background:#0D2A19;border:1px solid #164A2A;padding:6px 16px 10px;margin-bottom:1px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #164A2A"><span style="color:#7FA68A">honeypot simulation</span><span style="color:#00C805">✓ sell executed · 9.8% tax</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #164A2A"><span style="color:#7FA68A">hidden mint</span><span style="color:#FF3B30">✕ reachable by owner</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #164A2A"><span style="color:#7FA68A">bundles</span><span style="color:#FF3B30">✕ 18% supply · one funder</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0"><span style="color:#7FA68A">deployer reputation</span><span style="color:#FF3B30">✕ 2 confirmed rugs of 11</span></div>
+        </div>
+        <div style="background:#06140B;border:1px solid #164A2A;padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <span style="font-size:11px;color:#7FA68A;flex:1;min-width:200px">That was your free scan. A free Outlaw account gets five scans a day, with alerts and the full evidence panes.</span>
+          <a href="#" onClick="{{ goSignin }}" style="font-size:12px;font-weight:700;color:#0A1F12;background:#D4A937;padding:10px 16px;border-radius:3px" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Create free account</a>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ modalGate }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:36px 32px;text-align:center">
+        <div style="font-size:20px;font-weight:700;margin-bottom:8px">That was your free scan, outlaw.</div>
+        <div style="font-size:13px;color:#7FA68A;line-height:20px;max-width:420px;margin:0 auto 22px">Create a free account and the next five are on the house, every day. Paid tiers ride unlimited.</div>
+        <div style="display:flex;gap:12px;justify-content:center;margin-bottom:20px">
+          <a href="#" onClick="{{ goSignin }}" style="font-size:13px;font-weight:700;color:#0A1F12;background:#D4A937;padding:12px 20px;border-radius:3px" style-hover="background:#8A6D1F;color:#E6FBEA">❯ Create free account</a>
+          <a href="#" onClick="{{ goSignin }}" style="font-size:13px;color:#E6FBEA;border:1px solid #164A2A;padding:11px 20px;border-radius:3px" style-hover="border-color:#00C805">Sign in</a>
+        </div>
+        <div style="font-size:10px;color:#496552;line-height:16px;max-width:420px;margin:0 auto">Free scans are counted softly, by IP paired with a light browser signal. Signed in and paid accounts are never limited by IP.</div>
+        <div style="font-size:9px;color:#2B7A3D;margin-top:14px"><a href="#" onClick="{{ resetFreeScan }}" style="color:#2B7A3D">design demo: reset the free scan counter</a></div>
+      </div>
+    </sc-if>
+  </div>
+</sc-if></x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;tagline&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;Steal the alpha. Share the spoils.&quot;, &quot;No lords. No latency.&quot;], &quot;default&quot;: &quot;Steal the alpha. Share the spoils.&quot;, &quot;section&quot;: &quot;Hero&quot;}, &quot;foundingSeatsLeft&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 137, &quot;min&quot;: 0, &quot;max&quot;: 500, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Pricing&quot;}}">
+class Component extends DCLogic {
+  state = { view: 'home', email: '', sent: false, heroCmd: '', heroLog: [], heroRunning: false, heroDone: false };
+  go(v) { this.setState({ view: v, sent: false }); window.scrollTo(0, 0); }
+  componentWillUnmount() { clearInterval(this._hs); }
+  streamHero() {
+    if (this.state.heroRunning) return;
+    clearInterval(this._hs);
+    const mk = (m, tag, msg) => ({ m, tag, msg, c: tag.includes('OK') ? '#00C805' : tag.includes('FAIL') ? '#FF3B30' : tag.includes('WARN') ? '#FFB020' : '#7FA68A' });
+    const lines = [
+      mk('dispatch', '  ..', 'scouting sherwood · 31 modules'),
+      mk('honeypot_sim', '[ OK ]', 'sell executed · 4.1% tax'),
+      mk('hidden_mint', '[ OK ]', 'none found'),
+      mk('bundles', '[FAIL]', '22% of supply · one funder'),
+      mk('deployer_rep', '[FAIL]', '3 confirmed rugs of 11'),
+      mk('holders', '[WARN]', 'top10 52% sybil adjusted'),
+      mk('lp_lock', '[WARN]', 'unlocked · owner is deployer'),
+      mk('verdict', ' ❯❯', 'score 66 · high risk')
+    ];
+    this.setState({ heroRunning: true, heroDone: false, heroLog: [], heroCmd: 'scan 0x8f3c…a2e1' });
+    let i = 0;
+    this._hs = setInterval(() => {
+      i++;
+      this.setState({ heroLog: lines.slice(0, i) });
+      if (i >= lines.length) { clearInterval(this._hs); this.setState({ heroRunning: false, heroDone: true }); }
+    }, 200);
+  }
+  streamModalScan() {
+    this.setState({ scanModal: 'scanning', modalLog: [] });
+    clearInterval(this._ms);
+    const mk = (m, tag, msg) => ({ m, tag, msg, c: tag.includes('OK') ? '#00C805' : tag.includes('FAIL') ? '#FF3B30' : (tag.includes('WARN') || tag.includes('TIME')) ? '#FFB020' : '#7FA68A' });
+    const lines = [
+      mk('dispatch', '  ..', 'scouting sherwood · 31 modules riding'),
+      mk('honeypot_sim', '[ OK ]', 'sell executed · 9.8% total tax'),
+      mk('hidden_mint', '[FAIL]', 'mint reachable by owner'),
+      mk('mutable_tax', '[FAIL]', 'setTax callable · current 4/6, no cap'),
+      mk('ownership', '[WARN]', 'not renounced · owner is deployer'),
+      mk('holders', '[WARN]', 'top10 41% · sybil adjusted 57%'),
+      mk('bundles', '[FAIL]', '18% of supply · one funder · block 0'),
+      mk('lp_lock', '[ OK ]', 'locked 30d via archery.fun'),
+      mk('deployer_rep', '[FAIL]', '2 confirmed rugs of 11 launches'),
+      mk('social', '[WARN]', 'x is 4 days old · no site'),
+      mk('verdict', ' ❯❯', 'score 74 · high risk · confidence medium')
+    ];
+    let i = 0;
+    this._ms = setInterval(() => {
+      i++; this.setState({ modalLog: lines.slice(0, i) });
+      if (i >= lines.length) { clearInterval(this._ms); setTimeout(() => this.setState({ scanModal: 'result' }), 800); }
+    }, 160);
+  }
+  renderVals() {
+    const s = this.state;
+    const tag = (this.props.tagline ?? 'Steal the alpha. Share the spoils.');
+    const parts = tag === 'No lords. No latency.' ? ['No lords.', 'No latency.'] : ['Steal the alpha.', 'Share the spoils.'];
+    const mk = (id) => () => this.go(id);
+    const ticker = [
+      { t: '$CURFEW', s: 'rugged. caught 6h 12m before.' },
+      { t: '$TITHE', s: 'LP pulled. flagged at score 88.' },
+      { t: '$GALLOWS', s: 'honeypot. blocked 2,140 scans.' },
+      { t: '$FROSTY', s: 'rugged. deployer had 4 priors.' },
+      { t: '$PILGRIM', s: 'dev dumped. arrow struck first.' },
+      { t: '$TOLLGATE', s: 'proxy upgraded. marked extreme.' }
+    ];
+    const heights = [36, 80, 140, 196, 238, 264, 282, 292, 296, 292, 282, 264, 238, 196, 140, 80, 36];
+    const hoodBars = heights.map((h, i) => ({ h, wick: Math.round(h * 0.1) + 8, c: (i === 4 || i === 12) ? '#FF3B30' : '#00C805' }));
+    const band = (sc) => sc >= 75 ? ['Extreme', '#E6FBEA', '#8B1E1A'] : sc >= 50 ? ['High', '#0A1F12', '#FF3B30'] : sc >= 25 ? ['Some risk', '#0A1F12', '#FFB020'] : ['Low', '#0A1F12', '#00C805'];
+    const card = (t, n, age, liq, sc, hp, dep, bu, fr, top, lp, soc) => {
+      const b = band(sc);
+      return { t, n, age, liq, sc, band: b[0], fg: b[1], bg: b[2], hp, hpc: hp === 'clear' ? '#00C805' : '#FF3B30', dep, bu, fr, top, lp, soc };
+    };
+    const drow = (t, n, sc, hp, mc, vol, age, chg) => { const b = band(sc); return { t, n, lg: t.charAt(1), sc, band: b[0], fg: b[1], bg: b[2], hp, hpc: hp === 'clear' ? '#00C805' : '#FF3B30', mc, vol, age, chg, cc: chg.charAt(0) === '-' ? '#FF3B30' : '#00C805' }; };
+    const dLists = {
+      new: [drow('$MARIAN', 'Maid Marian', 18, 'clear', '$92k', '$96k', '4m', '+31.0%'), drow('$TITHE', 'Tithe Collector', 47, 'clear', '$210k', '$88k', '26m', '-3.8%'), drow('$GALLOWS', 'Gallows Pole', 83, 'trap', '$310k', '$150k', '11m', '-42.6%'), drow('$FRIARFEE', 'Friar Fee', 91, 'trap', '$45k', '$9k', '2h', '-71.2%')],
+      grad: [drow('$NOCK', 'Full Nock', 12, 'clear', '$8.4M', '$1.4M', '3h', '+12.4%'), drow('$SCARLET', 'Will Scarlet', 31, 'clear', '$3.2M', '$620k', '5h', '+4.1%'), drow('$SHRF', 'Sheriffcoin', 66, 'clear', '$1.1M', '$410k', '7h', '-18.2%'), drow('$NIGHTJAR', 'Nightjar', 74, 'clear', '$2.1M', '$310k', '3d', '+22.4%')],
+      done: [drow('$OUTLAWX', 'Outlaw Exchange', 9, 'clear', '$14M', '$2.8M', '3d', '+2.2%'), drow('$FLETCH', 'Fletcher', 28, 'clear', '$2.2M', '$540k', '6d', '+6.8%'), drow('$QUARREL', 'Crossbow Quarrel', 39, 'clear', '$960k', '$180k', '8d', '-1.4%'), drow('$PILGRIM', 'Pilgrim', 54, 'clear', '$80k', '$1k', '40d', '-0.6%')]
+    };
+    const dnum = (v) => { const m2 = String(v || 0).replace(/[$,+%\s]/g, ''); const f2 = parseFloat(m2) || 0; return /M/i.test(m2) ? f2 * 1e6 : /k/i.test(m2) ? f2 * 1e3 : f2; };
+    const dSortFns = { gainers: (a, b) => dnum(b.chg) - dnum(a.chg), losers: (a, b) => dnum(a.chg) - dnum(b.chg), traded: (a, b) => dnum(b.vol) - dnum(a.vol) };
+    const dTab = s.mktTab || 'new';
+    const dBase = dLists[dTab] || dLists.new;
+    const dRows = (dSortFns[s.mktSort] ? dBase.slice().sort(dSortFns[s.mktSort]) : dBase).map((x, i) => Object.assign({}, x, { rank: i + 1 }));
+    const dTabs = [['new', 'New'], ['grad', 'Graduating'], ['done', 'Graduated']].map(x => ({ label: x[1], style: 'padding:11px 14px;font-size:12px;cursor:pointer;border:none;background:transparent;border-bottom:2px solid ' + (dTab === x[0] ? '#00C805;color:#E6FBEA;font-weight:700' : 'transparent;color:#7FA68A'), go: () => this.setState({ mktTab: x[0] }) }));
+    const dSorts = [['gainers', 'Gainers'], ['losers', 'Losers'], ['traded', 'Most traded']].map(x => ({ label: x[1], style: 'padding:5px 9px;font-size:10px;cursor:pointer;border-radius:3px;border:1px solid ' + (s.mktSort === x[0] ? '#00C805;color:#00C805;background:#0D2A19' : '#164A2A;color:#7FA68A;background:transparent'), go: () => this.setState({ mktSort: s.mktSort === x[0] ? '' : x[0] }) }));
+    const rmul = (seed) => () => (seed = (seed * 16807 + 12345) % 2147483647) / 2147483647;
+    const rainCols = [6, 16, 27, 39, 52, 64, 77, 91].map((x, i) => { const rr = rmul(x * 13 + 7); let t2 = ''; for (let j = 0; j < 44; j++) t2 += (rr() > 0.5 ? '1' : '0') + '\n'; return { x: x + '%', txt: t2 + t2, dur: (10 + (i % 4) * 3) + 's', del: (-i * 2.7).toFixed(1) + 's', op: i % 3 === 0 ? 0.26 : 0.16 }; });
+    return {
+      rainCols, dRows, dTabs, dSorts,
+      scanModalOpen: !!s.scanModal, modalScanning: s.scanModal === 'scanning', modalResult: s.scanModal === 'result', modalGate: s.scanModal === 'gate',
+      modalLog: s.modalLog || [],
+      openFreeScan: (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        let n = 0; try { n = parseInt(localStorage.getItem('hood_free_scans') || '0', 10) || 0; } catch (err) {}
+        if (n >= 1) { this.setState({ scanModal: 'gate' }); return; }
+        try { localStorage.setItem('hood_free_scans', String(n + 1)); } catch (err) {}
+        this.streamModalScan();
+      },
+      resetFreeScan: (e) => { if (e && e.preventDefault) e.preventDefault(); try { localStorage.setItem('hood_free_scans', '0'); } catch (err) {} this.setState({ scanModal: '' }); },
+      closeModal: () => { clearInterval(this._ms); this.setState({ scanModal: '' }); },
+      tagline1: parts[0], tagline2: parts[1],
+      isHome: s.view === 'home', isBlog: s.view === 'blog', isArticle: s.view === 'article',
+      isToken: s.view === 'token', isDeployer: s.view === 'deployer', isWallet: s.view === 'wallet', isSignin: s.view === 'signin',
+      goHome: mk('home'), goBlog: mk('blog'), goArticle: mk('article'), goToken: mk('token'),
+      goDeployer: mk('deployer'), goWallet: mk('wallet'), goSignin: mk('signin'),
+      email: s.email, sent: s.sent, notSent: !s.sent,
+      setEmail: (e) => this.setState({ email: e.target.value }),
+      sendLink: () => this.setState({ sent: true }),
+      emailShown: s.email || 'your inbox',
+      seats: this.props.foundingSeatsLeft ?? 137,
+      heroCmd: s.heroCmd, heroLog: s.heroLog, heroDone: s.heroDone,
+      heroIdle: !s.heroRunning && !s.heroDone && s.heroLog.length === 0,
+      heroStatus: s.heroRunning ? 'running' : s.heroDone ? 'verdict in' : 'ready',
+      heroStatusColor: s.heroRunning ? '#FFB020' : '#00C805',
+      setHeroCmd: (e) => this.setState({ heroCmd: e.target.value }),
+      onHeroKey: (e) => { if (e.key === 'Enter') this.streamHero(); },
+      runHeroScan: (e) => { if (e && e.preventDefault) e.preventDefault(); this.streamHero(); },
+      tickerLoop: ticker.concat(ticker),
+      hoodBars,
+      capSecurity: ['honeypot simulation', 'hidden mint', 'mutable taxes', 'blacklist + pause', 'upgradeable proxy', 'ownership'],
+      capHolders: ['distribution', 'sheriff watch whales', 'fresh wallets', 'insider network graph', 'cross funding', 'sybil bands', 'holder overlap'],
+      capLaunch: ['launchpad lifecycle', 'snipers', 'bundles', 'historical bundles', 'funding origin'],
+      capMoat: ['deployer reputation', 'wallet rap sheet', 'signal fusion', 'rug receipts'],
+      capDiscovery: ['pulse board', 'pre scored launches', 'graduation tracking'],
+      pulseNew: [
+        card('$MARIAN', 'Maid Marian', '4m', '$38k', 18, 'clear', 'clean 6/6', '4%', '12%', '19%', 'locked', 'x + tg'),
+        card('$GALLOWS', 'Gallows Pole', '11m', '$61k', 83, 'trap', '2 rugs', '31%', '58%', '64%', 'unlocked', 'none'),
+        card('$TITHE', 'Tithe Collector', '26m', '$44k', 47, 'clear', 'unknown', '12%', '29%', '38%', 'locked 7d', 'tg only')
+      ],
+      pulseGrad: [
+        card('$NOCK', 'Full Nock', '3h', '$210k', 12, 'clear', 'clean 9/9', '2%', '8%', '14%', 'burned', 'x + tg + site'),
+        card('$SCARLET', 'Will Scarlet', '5h', '$156k', 31, 'clear', '1 dead', '9%', '17%', '26%', 'locked 30d', 'x + tg'),
+        card('$SHRF', 'Sheriffcoin', '7h', '$98k', 66, 'clear', '3 rugs', '22%', '41%', '52%', 'unlocked', 'x only')
+      ],
+      pulseDone: [
+        card('$OUTLAWX', 'Outlaw Exchange', '3d', '$1.2M', 9, 'clear', 'clean 12/12', '1%', '4%', '11%', 'burned', 'x + tg + site'),
+        card('$FLETCH', 'Fletcher', '6d', '$480k', 28, 'clear', 'unknown', '6%', '11%', '23%', 'locked 90d', 'x + tg'),
+        card('$CURFEW', 'Curfew Bell', '9d', '$0', 96, 'trap', '4 rugs', '38%', '61%', '71%', 'pulled', 'deleted')
+      ],
+      depTokens: [
+        { t: '$SHRF', dt: 'jul 08, 2026', mc: '$1.4M', st: 'live', stc: '#00C805', sc: '66 high', scc: '#FF3B30' },
+        { t: '$CURFEW', dt: 'jun 29, 2026', mc: '$890k', st: 'rugged', stc: '#FF3B30', sc: '88 extreme', scc: '#FF3B30' },
+        { t: '$TOLLGATE', dt: 'jun 11, 2026', mc: '$310k', st: 'rugged', stc: '#FF3B30', sc: '79 extreme', scc: '#FF3B30' },
+        { t: '$PILGRIM', dt: 'may 30, 2026', mc: '$120k', st: 'dead', stc: '#496552', sc: '54 high', scc: '#FF3B30' },
+        { t: '$ABBOT', dt: 'may 12, 2026', mc: '$95k', st: 'rugged', stc: '#FF3B30', sc: '81 extreme', scc: '#FF3B30' }
+      ],
+      rapRows: [
+        { t: '$CURFEW', role: 'insider', o: 'rugged', oc: '#FF3B30', e: 'block 0 buy, funded by deployer' },
+        { t: '$GALLOWS', role: 'sniper', o: 'live trap', oc: '#FFB020', e: 'sold 92% in first hour' },
+        { t: '$TOLLGATE', role: 'bundle member', o: 'rugged', oc: '#FF3B30', e: 'one of 14 wallets, one funder' },
+        { t: '$ABBOT', role: 'insider', o: 'rugged', oc: '#FF3B30', e: 'cross funded with dev wallet' },
+        { t: '$NOCK', role: 'holder', o: 'live', oc: '#00C805', e: 'no adverse action recorded' }
+      ],
+      posts: [
+        { k: 'lead', tag: 'security', title: 'How bundles hide: reading a launch before the snipers sell', dt: 'jul 02, 2026', mins: '9 min', go: mk('article') },
+        { k: 'sm', tag: 'forensics', title: 'The rap sheet method: why unknown is not the same as clean', dt: 'jun 24, 2026', mins: '6 min', go: mk('article') },
+        { k: 'sm', tag: 'trading', title: 'Exit liquidity math for people who hate math', dt: 'jun 17, 2026', mins: '7 min', go: mk('article') },
+        { k: 'sm', tag: 'security', title: 'Proxy upgrades: the rug that happens after you buy', dt: 'jun 09, 2026', mins: '5 min', go: mk('article') }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
