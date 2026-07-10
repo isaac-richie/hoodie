@@ -211,19 +211,21 @@ function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: ()
             <div style={{ fontSize: 10, color: "#7FA68A", marginTop: 6 }}>risk score / 100</div>
           </div>
           <div>
+            {(result.tokenSymbol || result.tokenName) && (
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                {result.tokenSymbol && (
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "#D4A937" }}>${result.tokenSymbol}</span>
+                )}
+                {result.tokenName && (
+                  <span style={{ fontSize: 14, color: "#E6FBEA" }}>{result.tokenName}</span>
+                )}
+              </div>
+            )}
             <span style={{ display: "inline-block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", padding: "4px 9px", background: band.bg, color: band.fg, marginBottom: 10 }}>
               {formatBand(result.band)}
             </span>
             <div style={{ fontSize: 13, lineHeight: "20px", color: "#E6FBEA" }}>{result.summary}</div>
-            <div style={{ fontSize: 11, color: "#496552", marginTop: 8 }}>
-              {result.tokenSymbol && (
-                <span style={{ color: "#D4A937", fontWeight: 700, marginRight: 6 }}>${result.tokenSymbol}</span>
-              )}
-              {result.tokenName && (
-                <span style={{ color: "#7FA68A", marginRight: 6 }}>{result.tokenName}</span>
-              )}
-              {formatAddress(result.tokenAddress)}
-            </div>
+            <div style={{ fontSize: 11, color: "#496552", marginTop: 8 }}>{formatAddress(result.tokenAddress)}</div>
           </div>
         </Panel>
 
