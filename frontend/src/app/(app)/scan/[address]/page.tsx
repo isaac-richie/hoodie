@@ -223,7 +223,15 @@ function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: ()
               {formatBand(result.band)}
             </span>
             <div style={{ fontSize: 13, lineHeight: "20px", color: "#E6FBEA" }}>{result.summary}</div>
-            <div style={{ fontSize: 11, color: "#496552", marginTop: 8 }}>{formatAddress(result.tokenAddress)}</div>
+            <div style={{ fontSize: 11, color: "#496552", marginTop: 8 }}>
+              {result.tokenSymbol && (
+                <span style={{ color: "#D4A937", fontWeight: 700, marginRight: 6 }}>${result.tokenSymbol}</span>
+              )}
+              {result.tokenName && (
+                <span style={{ color: "#7FA68A", marginRight: 6 }}>{result.tokenName}</span>
+              )}
+              {formatAddress(result.tokenAddress)}
+            </div>
           </div>
         </Panel>
 

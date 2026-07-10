@@ -24,6 +24,8 @@ export interface ModuleResult {
 
 export interface ScanResult {
   tokenAddress: `0x${string}`;
+  tokenName?: string;
+  tokenSymbol?: string;
   score: number;
   band: BackendRiskBand;
   confidence: Confidence;

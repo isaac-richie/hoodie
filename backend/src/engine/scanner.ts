@@ -103,6 +103,8 @@ export async function scanToken(tokenAddress: Address): Promise<ScanResult> {
 
   const scanResult: ScanResult = {
     tokenAddress: addr,
+    tokenName: meta.name,
+    tokenSymbol: meta.symbol,
     score,
     band,
     confidence,

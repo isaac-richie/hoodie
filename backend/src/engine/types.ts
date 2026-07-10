@@ -47,6 +47,8 @@ export interface ScanContext {
 
 export interface ScanResult {
   tokenAddress: Address;
+  tokenName?: string;
+  tokenSymbol?: string;
   score: number;
   band: RiskBand;
   confidence: Confidence;
