@@ -175,6 +175,10 @@ async function simulateTrade(ctx: ScanContext): Promise<TradeSimResult> {
     };
   }
 
+  if (ctx.lpPoolKind === "dex_v3") {
+    return tryV3TransferSim(ctx);
+  }
+
   if (ctx.lpPoolKind === "launchpad_curve") {
     const launched = ctx.launchpad?.lifecycle === "launched";
     return {
@@ -276,6 +280,45 @@ async function tryRouterSim(ctx: ScanContext, router: Address): Promise<TradeSim
     return { canSell: true, buyTax, sellTax, totalTax, gasAnomaly: false, sellGas: 1, method: "router" };
   } catch {
     return null;
+  }
+}
+
+async function tryV3TransferSim(ctx: ScanContext): Promise<TradeSimResult> {
+  if (!ctx.lpPool) {
+    return { canSell: false, buyTax: 0, sellTax: 0, totalTax: 0, gasAnomaly: false, sellGas: 0, method: "none", reason: "no_lp" };
+  }
+
+  const deadAddress = "0x000000000000000000000000000000000000dEaD" as Address;
+
+  try {
+    await cachedRpc.simulateContract({
+      address: ctx.tokenAddress,
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [deadAddress, 1n],
+      account: ctx.lpPool,
+    });
+
+    return {
+      canSell: true,
+      buyTax: 0,
+      sellTax: 0,
+      totalTax: 0,
+      gasAnomaly: false,
+      sellGas: 1,
+      method: "v3_transfer",
+    };
+  } catch {
+    return {
+      canSell: false,
+      buyTax: 0,
+      sellTax: 0,
+      totalTax: 0,
+      gasAnomaly: false,
+      sellGas: 0,
+      method: "v3_transfer",
+      reason: "transfer_reverts",
+    };
   }
 }
 

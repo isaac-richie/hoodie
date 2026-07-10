@@ -1,5 +1,5 @@
 import type { Address } from "viem";
-import { isAddress } from "viem";
+import { isAddress, getAddress } from "viem";
 import { env } from "./env.js";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -47,11 +47,21 @@ function parseNamedList(value: string): NamedAddress[] {
     .map((entry) => entry.trim())
     .filter(Boolean)
     .map((entry) => {
-      const [name, address] = entry.split(":");
-      if (!name || !address || !isAddress(address) || address === ZERO) return null;
-      return { name, address: address as Address };
+      const [name, rawAddr] = entry.split(":");
+      const address = safeAddress(rawAddr ?? "");
+      if (!name || !address) return null;
+      return { name, address };
     })
     .filter((entry): entry is NamedAddress => Boolean(entry));
+}
+
+function safeAddress(raw: string): Address | null {
+  try {
+    if (!raw || raw === ZERO) return null;
+    return getAddress(raw);
+  } catch {
+    return null;
+  }
 }
 
 function parseDexFactories(): DexFactoryConfig[] {
@@ -60,10 +70,11 @@ function parseDexFactories(): DexFactoryConfig[] {
     .map((entry) => entry.trim())
     .filter(Boolean)
     .map((entry) => {
-      const [name, address, type = "v2"] = entry.split(":");
-      if (!name || !address || !isAddress(address) || address === ZERO) return null;
+      const [name, rawAddr, type = "v2"] = entry.split(":");
+      const address = safeAddress(rawAddr ?? "");
+      if (!name || !address) return null;
       if (type !== "v2" && type !== "v3") return null;
-      return { name, address: address as Address, type };
+      return { name, address, type };
     })
     .filter((entry): entry is DexFactoryConfig => Boolean(entry));
 
@@ -93,8 +104,9 @@ function parseLaunchpads(): LaunchpadConfig[] {
     .map((entry) => entry.trim())
     .filter(Boolean)
     .reduce<LaunchpadConfig[]>((acc, entry) => {
-      const [name, address, type = "unknown", startBlock] = entry.split(":");
-      if (!name || !address || !isAddress(address) || address === ZERO) return acc;
+      const [name, rawAddr, type = "unknown", startBlock] = entry.split(":");
+      const address = safeAddress(rawAddr ?? "");
+      if (!name || !address) return acc;
       const safeType = ["bonding_curve", "factory", "locker", "unknown"].includes(type)
         ? (type as LaunchpadConfig["type"])
         : "unknown";

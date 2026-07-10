@@ -35,7 +35,7 @@ export interface ScanContext {
   deployTx?: string;
   currentBlock: number;
   lpPool?: Address;
-  lpPoolKind?: "dex_v2" | "launchpad_curve" | "launchpad_v3_locked";
+  lpPoolKind?: "dex_v2" | "dex_v3" | "launchpad_curve" | "launchpad_v3_locked";
   lpDex?: string;
   lpLiquidity?: number;
   launchpad?: LaunchpadInfo;

@@ -26,11 +26,12 @@ import { resolveLaunchpadInfo, type LaunchpadInfo } from "./launchpad-resolver.j
 export interface LpPoolInfo {
   poolAddress: Address;
   dex: string;
-  kind: "dex_v2" | "launchpad_curve" | "launchpad_v3_locked";
+  kind: "dex_v2" | "dex_v3" | "launchpad_curve" | "launchpad_v3_locked";
   token0: Address;
   token1: Address;
   pairedWith: Address;
   liquidity: number;
+  feeTier?: number;
   createdBlock?: number;
   launchpad?: LaunchpadInfo;
 }
@@ -49,6 +50,68 @@ const UNISWAP_V2_FACTORY_ABI = [
     outputs: [{ type: "address" }],
   },
 ] as const;
+
+const UNISWAP_V3_FACTORY_ABI = [
+  {
+    type: "function",
+    name: "getPool",
+    stateMutability: "view",
+    inputs: [
+      { type: "address", name: "tokenA" },
+      { type: "address", name: "tokenB" },
+      { type: "uint24", name: "fee" },
+    ],
+    outputs: [{ type: "address" }],
+  },
+] as const;
+
+const UNISWAP_V3_POOL_ABI = [
+  {
+    type: "function",
+    name: "token0",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    type: "function",
+    name: "token1",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
+  },
+  {
+    type: "function",
+    name: "liquidity",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint128" }],
+  },
+  {
+    type: "function",
+    name: "fee",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint24" }],
+  },
+  {
+    type: "function",
+    name: "slot0",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { type: "uint160", name: "sqrtPriceX96" },
+      { type: "int24", name: "tick" },
+      { type: "uint16", name: "observationIndex" },
+      { type: "uint16", name: "observationCardinality" },
+      { type: "uint16", name: "observationCardinalityNext" },
+      { type: "uint8", name: "feeProtocol" },
+      { type: "bool", name: "unlocked" },
+    ],
+  },
+] as const;
+
+const V3_FEE_TIERS = [100, 500, 3000, 10000] as const;
 
 const UNISWAP_V2_PAIR_ABI = [
   {
@@ -85,13 +148,15 @@ export async function findLpPool(tokenAddress: Address): Promise<LpPoolInfo | nu
   const cached = await redis.get(`${CACHE_PREFIX}${addr}`);
   if (cached) return JSON.parse(cached);
 
-  // Strategy 1: Query known DEX factories
+  // Strategy 1: Query known DEX factories (V2 + V3)
   let bestPool: LpPoolInfo | null = null;
   let bestLiquidity = 0;
 
   for (const dex of contractConfig.dexFactories) {
     for (const quoteToken of contractConfig.quoteTokens) {
-      const pool = await queryV2Factory(dex, addr, quoteToken);
+      const pool = dex.type === "v3"
+        ? await queryV3Factory(dex, addr, quoteToken)
+        : await queryV2Factory(dex, addr, quoteToken);
       if (pool && pool.liquidity > bestLiquidity) {
         bestPool = pool;
         bestLiquidity = pool.liquidity;
@@ -180,6 +245,75 @@ async function queryV2Factory(
   } catch {
     return null;
   }
+}
+
+async function queryV3Factory(
+  dex: { name: string; address: Address; type: string },
+  tokenAddress: Address,
+  quoteToken: Address
+): Promise<LpPoolInfo | null> {
+  let bestPool: LpPoolInfo | null = null;
+  let bestLiquidity = 0;
+
+  for (const fee of V3_FEE_TIERS) {
+    try {
+      const poolAddress = await cachedRpc.readContract({
+        address: dex.address,
+        abi: UNISWAP_V3_FACTORY_ABI,
+        functionName: "getPool",
+        args: [tokenAddress, quoteToken, fee],
+        ttlMs: 300_000,
+      }) as Address;
+
+      if (!poolAddress || poolAddress === "0x0000000000000000000000000000000000000000") {
+        continue;
+      }
+
+      const [token0, token1, liquidity] = await Promise.all([
+        cachedRpc.readContract({
+          address: poolAddress,
+          abi: UNISWAP_V3_POOL_ABI,
+          functionName: "token0",
+          ttlMs: 3600_000,
+        }) as Promise<Address>,
+        cachedRpc.readContract({
+          address: poolAddress,
+          abi: UNISWAP_V3_POOL_ABI,
+          functionName: "token1",
+          ttlMs: 3600_000,
+        }) as Promise<Address>,
+        cachedRpc.readContract({
+          address: poolAddress,
+          abi: UNISWAP_V3_POOL_ABI,
+          functionName: "liquidity",
+          ttlMs: 30_000,
+        }) as Promise<bigint>,
+      ]);
+
+      const liquidityNum = Number(liquidity);
+      if (liquidityNum <= 0) continue;
+
+      const pairedWith = token0.toLowerCase() === tokenAddress.toLowerCase() ? token1 : token0;
+
+      if (liquidityNum > bestLiquidity) {
+        bestLiquidity = liquidityNum;
+        bestPool = {
+          poolAddress,
+          dex: dex.name,
+          kind: "dex_v3",
+          token0,
+          token1,
+          pairedWith,
+          liquidity: liquidityNum,
+          feeTier: fee,
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return bestPool;
 }
 
 async function searchPairCreatedEvents(tokenAddress: Address): Promise<LpPoolInfo | null> {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { isAddress } from "viem";
 import { ApiClientError, type ModuleResult, type ModuleStatus, type ScanResult } from "@/lib/api";
 import { useTokenScan } from "@/lib/queries";
@@ -119,6 +119,46 @@ function EvidenceBlock({ evidence }: { evidence: Record<string, unknown> }) {
   );
 }
 
+function NewScanBar() {
+  const [input, setInput] = useState("");
+  const router = useRouter();
+
+  function handleScan() {
+    const trimmed = input.trim();
+    if (trimmed) {
+      router.push(`/scan/${trimmed}`);
+      setInput("");
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 10, alignItems: "center", background: "#06140B", border: "1px solid #164A2A", padding: "8px 14px" }}>
+      <button
+        onClick={() => router.push("/hideout")}
+        style={{ background: "transparent", border: "1px solid #164A2A", color: "#7FA68A", fontSize: 11, padding: "5px 10px", cursor: "pointer", borderRadius: 3, whiteSpace: "nowrap" }}
+      >
+        ← Back
+      </button>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, background: "#0A1F12", border: "1px solid #164A2A", borderRadius: 3, padding: "0 10px" }}>
+        <span style={{ color: "#D4A937", fontWeight: 700 }}>❯</span>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleScan()}
+          placeholder="scan another address"
+          style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#E6FBEA", fontSize: 12, padding: "8px 0" }}
+        />
+      </div>
+      <button
+        onClick={handleScan}
+        style={{ background: "#D4A937", color: "#0A1F12", border: "none", borderRadius: 3, fontSize: 11, fontWeight: 700, padding: "7px 14px", cursor: "pointer", whiteSpace: "nowrap" }}
+      >
+        Scan
+      </button>
+    </div>
+  );
+}
+
 function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: () => void }) {
   const [activeTab, setActiveTab] = useState<(typeof MODULE_TABS)[number]>("All");
   const addToQuiver = useQuiverStore((state) => state.add);
@@ -137,6 +177,7 @@ function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: ()
 
   return (
     <div style={{ display: "grid", gap: 1 }}>
+      <NewScanBar />
       <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#06140B", border: "1px solid #164A2A", padding: "8px 14px", fontSize: 11, flexWrap: "wrap" }}>
         <span style={{ color: "#496552" }}>scan.log</span>
         <span style={{ color: "#7FA68A" }}>
@@ -288,6 +329,8 @@ export default function ScanPage() {
     const error = scan.error instanceof ApiClientError ? scan.error : null;
 
     return (
+      <div style={{ display: "grid", gap: 1 }}>
+      <NewScanBar />
       <Panel style={{ maxWidth: 820, margin: "24px auto" }}>
         <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "#FF3B30", marginBottom: 10 }}>
           scan failed
@@ -313,6 +356,7 @@ export default function ScanPage() {
           retry scan
         </button>
       </Panel>
+      </div>
     );
   }
 

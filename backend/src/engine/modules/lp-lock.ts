@@ -27,6 +27,19 @@ export const lpLockModule: ScanModule = {
         return launchpadLiquidityResult(ctx, start);
       }
 
+      if (ctx.lpPoolKind === "dex_v3") {
+        return {
+          module: "lp_lock",
+          status: "warn",
+          score: 40,
+          weight: 12,
+          label: "Uniswap V3 pool — NFT position lock check not yet supported",
+          detail: `V3 pool at ${ctx.lpPool}. V3 liquidity is managed via NFT positions; ERC20 LP burn/lock checks do not apply. Manual review recommended.`,
+          evidence: { pool: ctx.lpPool, dex: ctx.lpDex, kind: "dex_v3" },
+          durationMs: Date.now() - start,
+        };
+      }
+
       if (!ctx.lpPool) {
         return {
           module: "lp_lock",
