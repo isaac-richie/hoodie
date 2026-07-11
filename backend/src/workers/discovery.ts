@@ -176,7 +176,9 @@ async function enqueueNewContracts(contracts: Address[], blockNumber: number): P
     await scanQueue.add(
       "scan",
       { tokenAddress: addr, discoveryBlock: blockNumber },
-      { jobId: `scan:${addr.toLowerCase()}` }
+      // BullMQ forbids ":" in custom job ids — using one made every discovered
+      // token fail to enqueue ("Custom Id cannot contain :") on every block.
+      { jobId: `scan-${addr.toLowerCase()}` }
     );
 
     logger.info({ token: addr, block: blockNumber }, "new token discovered, queued for scan");
