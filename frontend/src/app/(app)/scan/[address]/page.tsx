@@ -61,6 +61,7 @@ const EVIDENCE_LABELS: Record<string, string> = {
   count: "Snipers", soldAll: "Already exited", address: "Wallet",
   hasBlacklist: "Blacklist function", hasPause: "Pause function",
   templatesChecked: "Templates checked",
+  verifiedBy: "Verified by", externalVerifier: "External verifier",
 };
 // Internal plumbing that shouldn't reach a person reading a report.
 const EVIDENCE_HIDE = new Set([

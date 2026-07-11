@@ -133,7 +133,15 @@ export const honeypotModule: ScanModule = {
         weight: 15,
         label,
         detail: `Buy tax: ${result.buyTax}%. Sell tax: ${result.sellTax}%. Can sell: ${result.canSell}. Method: ${result.method}.`,
-        evidence: result,
+        evidence: {
+          ...result,
+          // Honesty note: external verifiers (Honeypot.is, GoPlus, TokenSniffer)
+          // do not support Robinhood Chain (4663). Our verdict comes from direct
+          // on-chain simulation against the chain's own RPC — say so, rather
+          // than implying third-party confirmation we don't have.
+          verifiedBy: "On-chain simulation (Robinhood Chain RPC)",
+          externalVerifier: "Not yet available for Robinhood Chain",
+        },
         durationMs: Date.now() - start,
       };
     } catch (err) {
