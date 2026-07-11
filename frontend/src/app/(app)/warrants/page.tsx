@@ -17,6 +17,74 @@ function eventColor(status: string) {
   return "#FFB020";
 }
 
+function triggerLabel(triggerType: string) {
+  return triggerType.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function stringValue(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function AlertReport({ payload }: { payload: Record<string, unknown> | null }) {
+  const report = payload?.report && typeof payload.report === "object"
+    ? payload.report as Record<string, unknown>
+    : null;
+  const moduleReport = report?.module && typeof report.module === "object"
+    ? report.module as Record<string, unknown>
+    : null;
+  const evidence = moduleReport?.evidence && typeof moduleReport.evidence === "object"
+    ? moduleReport.evidence as Record<string, unknown>
+    : null;
+
+  if (!payload && !report && !moduleReport) return null;
+
+  const title = stringValue(report?.title) ?? triggerLabel(stringValue(payload?.triggerType) ?? "alert");
+  const score = numberValue(report?.score ?? payload?.score);
+  const band = stringValue(report?.band ?? payload?.band);
+  const summary = stringValue(report?.summary ?? payload?.summary);
+  const label = stringValue(moduleReport?.label);
+  const detail = stringValue(moduleReport?.detail);
+  const hpFields = [
+    ["can sell", evidence?.canSell],
+    ["buy tax", evidence?.buyTax],
+    ["sell tax", evidence?.sellTax],
+    ["total tax", evidence?.totalTax],
+    ["method", evidence?.method],
+    ["reason", evidence?.reason],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+
+  return (
+    <div style={{ marginTop: 8, border: "1px solid #164A2A", background: "#06140B", padding: 10 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+        <span style={{ color: title.toLowerCase().includes("honeypot") ? "#FF3B30" : "#D4A937", fontWeight: 700 }}>
+          {title}
+        </span>
+        {score !== undefined && <span style={{ color: "#7FA68A" }}>score {score}</span>}
+        {band && <span style={{ color: "#7FA68A" }}>band {band.replace("_", " ")}</span>}
+      </div>
+      {label && <div style={{ color: "#E6FBEA", lineHeight: "18px", marginBottom: 4 }}>{label}</div>}
+      {detail && <div style={{ color: "#7FA68A", lineHeight: "18px", marginBottom: 8 }}>{detail}</div>}
+      {!detail && summary && <div style={{ color: "#7FA68A", lineHeight: "18px", marginBottom: 8 }}>{summary}</div>}
+      {hpFields.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(90px, 1fr))", gap: "6px 12px" }}>
+          {hpFields.map(([labelText, value]) => (
+            <div key={labelText} style={{ display: "flex", justifyContent: "space-between", gap: 8, color: "#7FA68A" }}>
+              <span>{labelText}</span>
+              <span style={{ color: "#E6FBEA", textAlign: "right" }}>{String(value)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WarrantsPage() {
   const { address, isConnected } = useAccount();
   const userId = address?.toLowerCase();
@@ -80,6 +148,7 @@ export default function WarrantsPage() {
                 <div style={{ color: "#7FA68A", lineHeight: "17px" }}>
                   {event.error || `Alert ${event.alertId.slice(0, 8)} fired for ${short(event.targetAddress)}.`}
                 </div>
+                <AlertReport payload={event.payload} />
               </div>
             ))}
           </div>
@@ -119,6 +188,7 @@ export default function WarrantsPage() {
                 style={{ width: "100%", boxSizing: "border-box", background: "#06140B", border: "1px solid #164A2A", color: "#E6FBEA", fontSize: 12, padding: "10px", marginBottom: 10 }}
               />
               <select value={triggerType} onChange={(event) => setTriggerType(event.target.value)} style={{ width: "100%", background: "#06140B", border: "1px solid #164A2A", color: "#E6FBEA", fontSize: 12, padding: "9px 10px", marginBottom: 10 }}>
+                <option value="honeypot_detected">honeypot detected</option>
                 <option value="scan_complete">scan complete</option>
                 <option value="score_above">score above</option>
                 <option value="score_below">score below</option>

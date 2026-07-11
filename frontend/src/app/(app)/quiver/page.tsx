@@ -9,6 +9,7 @@ import { useAddWatchlistItem, useAlertEvents, useCreateAlert, useEnsureUser, use
 import { useQuiverStore } from "@/stores/quiver";
 
 const TRIGGERS = [
+  { label: "honeypot detected", value: "honeypot_detected" },
   { label: "scan complete", value: "scan_complete" },
   { label: "score above threshold", value: "score_above" },
   { label: "high risk band", value: "band_high" },

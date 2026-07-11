@@ -3,7 +3,7 @@ import { Queue } from "bullmq";
 import { env } from "../config/env.js";
 import { db } from "../db/client.js";
 import { alerts } from "../db/schema.js";
-import type { ScanResult } from "../engine/types.js";
+import type { ModuleResult, ScanResult } from "../engine/types.js";
 
 export const ALERT_DELIVERY_QUEUE = "alert-delivery";
 
@@ -40,6 +40,7 @@ export async function evaluateAlertsForScan(result: ScanResult): Promise<void> {
       band: result.band,
       confidence: result.confidence,
       summary: result.summary,
+      report: buildAlertReport(rule.triggerType, result),
       timestamp: result.timestamp,
     };
 
@@ -73,6 +74,10 @@ export async function evaluateAlertsForScan(result: ScanResult): Promise<void> {
 
 function shouldFire(triggerType: string, threshold: number | null, result: ScanResult): boolean {
   switch (triggerType) {
+    case "honeypot_detected": {
+      const hp = getModule(result, "honeypot_sim");
+      return Boolean(hp && hp.status === "fail");
+    }
     case "score_above":
       return result.score >= (threshold ?? 75);
     case "score_below":
@@ -86,4 +91,57 @@ function shouldFire(triggerType: string, threshold: number | null, result: ScanR
     default:
       return false;
   }
+}
+
+function buildAlertReport(triggerType: string, result: ScanResult) {
+  const module = triggerType === "honeypot_detected"
+    ? summarizeModule(getModule(result, "honeypot_sim"))
+    : undefined;
+
+  return {
+    title: reportTitle(triggerType),
+    severity: module?.status ?? result.band,
+    score: result.score,
+    band: result.band,
+    confidence: result.confidence,
+    summary: result.summary,
+    module,
+  };
+}
+
+function reportTitle(triggerType: string): string {
+  switch (triggerType) {
+    case "honeypot_detected":
+      return "Honeypot detected";
+    case "score_above":
+      return "Risk score crossed threshold";
+    case "score_below":
+      return "Risk score dropped below threshold";
+    case "band_high":
+      return "High-risk band detected";
+    case "band_extreme":
+      return "Extreme-risk band detected";
+    case "scan_complete":
+      return "Scan completed";
+    default:
+      return "Alert fired";
+  }
+}
+
+function getModule(result: ScanResult, moduleName: string): ModuleResult | undefined {
+  return result.moduleResults.find((moduleResult) => moduleResult.module === moduleName);
+}
+
+function summarizeModule(moduleResult: ModuleResult | undefined) {
+  if (!moduleResult) return undefined;
+  return {
+    module: moduleResult.module,
+    category: moduleResult.category,
+    status: moduleResult.status,
+    score: moduleResult.score,
+    weight: moduleResult.weight,
+    label: moduleResult.label,
+    detail: moduleResult.detail,
+    evidence: moduleResult.evidence,
+  };
 }
