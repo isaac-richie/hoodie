@@ -202,13 +202,28 @@ async function getTokenLogs(
   fromBlock: bigint,
   indexedToken = false
 ): Promise<any[]> {
-  const logs = await cachedRpc.getLogs({
-    address,
-    event,
-    args: indexedToken ? { token: tokenAddress } : undefined,
-    fromBlock,
-    toBlock: "latest",
-  });
+  // Wide fromBlock→latest ranges exceed the RPC provider's per-call block-range
+  // limit (Alchemy caps eth_getLogs at 10,000 blocks) — getLogsChunked splits
+  // the query into safe windows. Retry once on top of that for transient blips.
+  let logs: any[] = [];
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      logs = await cachedRpc.getLogsChunked({
+        address,
+        event,
+        args: indexedToken ? { token: tokenAddress } : undefined,
+        fromBlock,
+        toBlock: "latest",
+      });
+      lastErr = undefined;
+      break;
+    } catch (err) {
+      lastErr = err;
+      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+  }
+  if (lastErr) throw lastErr;
 
   const token = tokenAddress.toLowerCase();
   return logs.filter((log) => String(log.args?.token ?? "").toLowerCase() === token);

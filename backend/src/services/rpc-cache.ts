@@ -384,6 +384,60 @@ export const cachedRpc = {
   },
 
   /**
+   * Get logs across a wide block range, chunked to stay under the RPC
+   * provider's per-call block-range limit (Alchemy caps eth_getLogs at
+   * 10,000 blocks — a single unchunked query from a token's deploy block
+   * to "latest" hard-fails for any token more than ~10K blocks old).
+   *
+   * Each chunk reuses getLogs()'s own caching, so repeat scans only pay
+   * for the newest chunk (the "latest"-bounded tail) — older chunks are
+   * cached forever once fetched.
+   */
+  async getLogsChunked(params: {
+    address: Address;
+    event: unknown;
+    args?: Record<string, unknown>;
+    fromBlock: bigint;
+    toBlock: bigint | "latest";
+    maxRangeBlocks?: number;
+    concurrency?: number;
+  }): Promise<any[]> {
+    const maxRange = BigInt(params.maxRangeBlocks ?? 9_000);
+    const concurrency = params.concurrency ?? 5;
+
+    const toBlock = params.toBlock === "latest"
+      ? await this.getBlockNumber()
+      : params.toBlock;
+
+    if (params.fromBlock > toBlock) return [];
+
+    const ranges: { from: bigint; to: bigint }[] = [];
+    for (let from = params.fromBlock; from <= toBlock; from += maxRange) {
+      const to = from + maxRange - 1n > toBlock ? toBlock : from + maxRange - 1n;
+      ranges.push({ from, to });
+    }
+
+    const allLogs: any[] = [];
+    for (let i = 0; i < ranges.length; i += concurrency) {
+      const batch = ranges.slice(i, i + concurrency);
+      const results = await Promise.all(
+        batch.map((range) =>
+          this.getLogs({
+            address: params.address,
+            event: params.event,
+            args: params.args,
+            fromBlock: range.from,
+            toBlock: range.to,
+          })
+        )
+      );
+      for (const chunk of results) allLogs.push(...chunk);
+    }
+
+    return allLogs;
+  },
+
+  /**
    * Get transaction count (nonce) — short cache
    */
   async getTransactionCount(address: Address): Promise<number> {

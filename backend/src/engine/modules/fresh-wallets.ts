@@ -25,6 +25,19 @@ export const freshWalletModule: ScanModule = {
     const start = Date.now();
 
     try {
+      if (!ctx.deployBlock) {
+        return {
+          module: "fresh_wallets",
+          status: "warn",
+          score: 15,
+          weight: 6,
+          label: "deploy block unknown — skipped",
+          detail: "Deployer/deploy-block resolution failed for this token, so holder history can't be scoped to a safe block range. Re-run the scan once deployer info resolves.",
+          evidence: {},
+          durationMs: Date.now() - start,
+        };
+      }
+
       const analysis = await analyzeFreshWallets(ctx);
 
       let score: number;
@@ -87,7 +100,7 @@ interface FreshWalletAnalysis {
 
 async function analyzeFreshWallets(ctx: ScanContext): Promise<FreshWalletAnalysis> {
   // Get Transfer events to find holder addresses
-  const logs = await cachedRpc.getLogs({
+  const logs = await cachedRpc.getLogsChunked({
     address: ctx.tokenAddress,
     event: {
       type: "event",

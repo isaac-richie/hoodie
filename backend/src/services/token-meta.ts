@@ -18,7 +18,7 @@ import { erc20Abi } from "../utils/abis.js";
 import { redis, CACHE_KEYS } from "../config/redis.js";
 import { resolveDeployer } from "./deployer-resolver.js";
 import { findLpPool, type LpPoolInfo } from "./lp-resolver.js";
-import type { LaunchpadInfo } from "./launchpad-resolver.js";
+import { resolveLaunchpadInfo, type LaunchpadInfo } from "./launchpad-resolver.js";
 
 export interface TokenMeta {
   address: Address;
@@ -40,14 +40,18 @@ export async function resolveTokenMeta(address: Address): Promise<TokenMeta> {
 
   const meta: TokenMeta = { address };
 
-  // Fetch ERC20 info + deployer + LP in parallel
-  const [name, symbol, decimals, totalSupply, deployInfo, lpInfo] = await Promise.allSettled([
+  // Fetch ERC20 info + deployer + LP + launchpad lifecycle in parallel.
+  // resolveLaunchpadInfo is queried directly (not only as findLpPool's fallback)
+  // because it reads on-chain event logs directly — a reliable deployer source
+  // when the block explorer used by resolveDeployer is flaky or down.
+  const [name, symbol, decimals, totalSupply, deployInfo, lpInfo, launchpadInfo] = await Promise.allSettled([
     cachedRpc.readContract({ address, abi: erc20Abi, functionName: "name", ttlMs: 3600_000 }),
     cachedRpc.readContract({ address, abi: erc20Abi, functionName: "symbol", ttlMs: 3600_000 }),
     cachedRpc.readContract({ address, abi: erc20Abi, functionName: "decimals", ttlMs: 3600_000 }),
     cachedRpc.readContract({ address, abi: erc20Abi, functionName: "totalSupply", ttlMs: 60_000 }),
     resolveDeployer(address),
     findLpPool(address),
+    resolveLaunchpadInfo(address),
   ]);
 
   if (name.status === "fulfilled") meta.name = name.value as string;
@@ -65,6 +69,18 @@ export async function resolveTokenMeta(address: Address): Promise<TokenMeta> {
     meta.lpPool = lpInfo.value.poolAddress;
     meta.lpInfo = lpInfo.value;
     meta.launchpad = lpInfo.value.launchpad;
+  }
+
+  if (!meta.launchpad && launchpadInfo.status === "fulfilled" && launchpadInfo.value) {
+    meta.launchpad = launchpadInfo.value;
+  }
+
+  // Fallback: block explorer creator lookup can fail (flaky Blockscout instance),
+  // but the launchpad's own TokenLaunched event carries the true deployer address
+  // as an indexed topic — trust that on-chain source when the explorer comes up empty.
+  if (!meta.deployer && launchpadInfo.status === "fulfilled" && launchpadInfo.value?.deployer) {
+    meta.deployer = launchpadInfo.value.deployer;
+    meta.deployBlock = launchpadInfo.value.launchedBlock ?? meta.deployBlock;
   }
 
   await redis.setex(CACHE_KEYS.tokenMeta(address), 3600, JSON.stringify(meta, bigIntReplacer));

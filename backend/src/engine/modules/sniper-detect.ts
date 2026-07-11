@@ -114,11 +114,14 @@ async function detectSnipers(ctx: ScanContext): Promise<SniperInfo> {
 
   const buyers = new Set<string>();
   const zeroAddr = "0x0000000000000000000000000000000000000000";
+  const poolAddr = ctx.lpPool?.toLowerCase();
 
   for (const log of logs) {
     const from = (log.args.from as string).toLowerCase();
     const to = (log.args.to as string).toLowerCase();
-    if (from !== zeroAddr && to !== zeroAddr && to !== ctx.tokenAddress.toLowerCase()) {
+    // Exclude the LP pool itself — the initial liquidity-funding transfer
+    // isn't a sniper buy, it's the deployer seeding the pool.
+    if (from !== zeroAddr && to !== zeroAddr && to !== ctx.tokenAddress.toLowerCase() && to !== poolAddr) {
       buyers.add(to);
     }
   }

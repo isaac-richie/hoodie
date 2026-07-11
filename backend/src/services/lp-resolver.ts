@@ -332,7 +332,7 @@ async function searchPairCreatedEvents(tokenAddress: Address): Promise<LpPoolInf
   for (const dex of contractConfig.dexFactories) {
     try {
       // Search with token as token0
-      const logs0 = await cachedRpc.getLogs({
+      const logs0 = await cachedRpc.getLogsChunked({
         address: dex.address,
         event: pairCreatedEvent,
         fromBlock: 0n,

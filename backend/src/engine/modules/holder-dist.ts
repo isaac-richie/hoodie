@@ -27,6 +27,19 @@ export const holderDistModule: ScanModule = {
     const start = Date.now();
 
     try {
+      if (!ctx.deployBlock) {
+        return {
+          module: "holder_distribution",
+          status: "warn",
+          score: 40,
+          weight: 12,
+          label: "deploy block unknown — skipped",
+          detail: "Deployer/deploy-block resolution failed for this token, so holder history can't be scoped to a safe block range. Re-run the scan once deployer info resolves.",
+          evidence: {},
+          durationMs: Date.now() - start,
+        };
+      }
+
       const dist = await analyzeDistribution(ctx);
 
       let score: number;
@@ -91,7 +104,7 @@ async function analyzeDistribution(ctx: ScanContext): Promise<Distribution> {
   // Get Transfer events to reconstruct holder balances
   // This is the heavy-lift module — uses getLogs to pull all transfers
 
-  const logs = await cachedRpc.getLogs({
+  const logs = await cachedRpc.getLogsChunked({
     address: ctx.tokenAddress,
     event: {
       type: "event",

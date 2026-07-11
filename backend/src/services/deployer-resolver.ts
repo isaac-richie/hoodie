@@ -88,32 +88,65 @@ async function tryAlchemyCreator(address: Address): Promise<DeployInfo | null> {
 }
 
 async function tryExplorerApi(address: Address): Promise<DeployInfo | null> {
-  // Robinhood Chain explorer API — adjust URL when known
-  // This is a common pattern across EVM explorers
-  try {
-    const explorerUrl = env.explorerApiUrl;
-    if (!explorerUrl) return null;
+  // Robinhood Chain's Blockscout instance intermittently 500s ("Something went
+  // wrong.") on roughly half of requests even though the data is there, and
+  // outages can last a couple seconds at a stretch — so sequential retries with
+  // small backoff can still lose. Fire a few requests concurrently per round
+  // instead: if the explorer is up at all, at least one of N parallel calls in
+  // a round tends to land. This is the only creator-resolution strategy that
+  // actually works on this chain (Alchemy's alchemy_getContractCreator returns
+  // "network not recognized" and trace_block is disabled for this app).
+  const explorerUrl = env.explorerApiUrl;
+  if (!explorerUrl) return null;
 
-    const url = `${explorerUrl}/api?module=contract&action=getcontractcreation&contractaddresses=${address}`;
+  const url = `${explorerUrl}/api?module=contract&action=getcontractcreation&contractaddresses=${address}`;
+  const roundSize = 3;
+  const rounds = 2;
+
+  for (let round = 0; round < rounds; round++) {
+    const attempts = await Promise.all(
+      Array.from({ length: roundSize }, () => fetchCreator(url))
+    );
+    const hit = attempts.find((r): r is NonNullable<typeof r> => r !== null);
+    if (hit) {
+      const tx = await cachedRpc.raw.getTransaction({ hash: hit.txHash as Hex });
+      return {
+        deployer: hit.contractCreator as Address,
+        deployBlock: Number(tx.blockNumber ?? 0),
+        deployTx: hit.txHash ?? "",
+      };
+    }
+
+    if (round < rounds - 1) {
+      await sleep(500);
+    }
+  }
+
+  return null;
+}
+
+async function fetchCreator(url: string): Promise<{ contractCreator: string; txHash: string } | null> {
+  try {
     const response = await fetch(url);
     const data = await response.json() as {
+      status?: string;
       result?: { contractCreator?: string; txHash?: string }[];
     };
 
-    if (data.result?.[0]?.contractCreator) {
-      const r = data.result[0];
-      // Need to get block number from the tx
-      const tx = await cachedRpc.raw.getTransaction({ hash: r.txHash as Hex });
+    if (data.status === "1" && data.result?.[0]?.contractCreator && data.result[0].txHash) {
       return {
-        deployer: r.contractCreator as Address,
-        deployBlock: Number(tx.blockNumber ?? 0),
-        deployTx: r.txHash ?? "",
+        contractCreator: data.result[0].contractCreator,
+        txHash: data.result[0].txHash,
       };
     }
   } catch {
-    // Explorer not available
+    // network error — treated as a miss for this attempt
   }
   return null;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function tryBinarySearchCreation(address: Address): Promise<DeployInfo | null> {

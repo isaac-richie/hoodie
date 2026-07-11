@@ -118,6 +118,7 @@ async function detectBundles(ctx: ScanContext): Promise<BundleInfo> {
   // Identify wallets that bought in block 0-2
   const earlyBuyers = new Map<string, bigint>();
   const zeroAddr = "0x0000000000000000000000000000000000000000";
+  const poolAddr = ctx.lpPool?.toLowerCase();
 
   for (const log of logs) {
     const from = (log.args.from as string).toLowerCase();
@@ -125,6 +126,9 @@ async function detectBundles(ctx: ScanContext): Promise<BundleInfo> {
     const value = log.args.value as bigint;
 
     if (from === zeroAddr) continue; // skip mints
+    // The initial LP-funding transfer sends a large chunk of supply to the
+    // pool itself — that's liquidity provisioning, not a bundled wallet.
+    if (to === poolAddr) continue;
 
     // Track buys (from pool or router)
     const current = earlyBuyers.get(to) ?? 0n;

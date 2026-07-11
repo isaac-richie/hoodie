@@ -25,7 +25,7 @@ const CORE_MODULES = new Set([
 ]);
 
 const POLICIES: Record<ProductTier, TierPolicy> = {
-  guest: { dailyScans: 100, rpm: 30, modules: "core", scopes: ["scan:read"] },
+  guest: { dailyScans: 100, rpm: 30, modules: "all", scopes: ["scan:read"] },
   free: { dailyScans: 10, rpm: 30, modules: "core", scopes: ["scan:read", "user:write"] },
   pro: { dailyScans: 1000, rpm: 120, modules: "all", scopes: ["scan:read", "user:write", "alerts:write"] },
   team: { dailyScans: 5000, rpm: 300, modules: "all", scopes: ["scan:read", "user:write", "alerts:write", "team:write"] },
