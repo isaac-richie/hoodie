@@ -263,7 +263,7 @@ export default function MarketingHome() {
               What it sees
             </h2>
             <span style={{ fontSize: 13, color: "#7FA68A", marginLeft: "auto" }}>
-              31 modules run on every scan
+              14 modules run on every scan
             </span>
           </div>
           <div
@@ -559,7 +559,7 @@ export default function MarketingHome() {
                   Deployer has three confirmed rugs. Top ten holds 52 percent sybil adjusted.
                 </div>
                 <div style={{ fontSize: 11, color: "#496552", marginTop: 6 }}>
-                  confidence: high · 31/31 modules reported
+                  confidence: high · 14/14 modules reported
                 </div>
               </div>
             </div>

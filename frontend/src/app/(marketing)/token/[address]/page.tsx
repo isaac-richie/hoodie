@@ -105,7 +105,7 @@ export default function PublicTokenPage() {
               unlocked.
             </div>
             <div style={{ fontSize: 11, color: "#496552", marginTop: 8 }}>
-              confidence: high · 31/31 modules · not financial advice. DYOR.
+              confidence: high · 14/14 modules · not financial advice. DYOR.
             </div>
           </div>
         </div>

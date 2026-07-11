@@ -75,7 +75,7 @@ export const TICKER_ITEMS = [
 ];
 
 export const SCAN_LOG_LINES = [
-  { m: "dispatch", tag: "  ..", msg: "scouting sherwood · 31 modules riding" },
+  { m: "dispatch", tag: "  ..", msg: "scouting sherwood · 14 modules riding" },
   { m: "honeypot_sim", tag: "[ OK ]", msg: "sell executed · 9.8% total tax" },
   { m: "hidden_mint", tag: "[FAIL]", msg: "mint reachable by owner" },
   { m: "mutable_tax", tag: "[FAIL]", msg: "setTax callable · current 4/6, no cap" },

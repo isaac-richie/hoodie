@@ -196,7 +196,25 @@ export class ApiClientError extends Error {
   }
 }
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/$/, "");
+// NEXT_PUBLIC_* is inlined at build time. If NEXT_PUBLIC_API_URL isn't set when
+// `next build` runs, every request would silently point at localhost and the whole
+// production site would fail with no clue why. Fail the build loudly instead, and
+// only fall back to localhost in development.
+function resolveApiBaseUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "NEXT_PUBLIC_API_URL is not set. It must be defined at build time for production — " +
+        "otherwise the deployed site points every request at localhost. Set it before running `next build`."
+    );
+  }
+
+  return "http://localhost:3001";
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export async function apiGet<T>(path: string): Promise<T> {
   return apiRequest<T>(path);
