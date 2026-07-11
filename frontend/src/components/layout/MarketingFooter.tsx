@@ -16,8 +16,9 @@ export function MarketingFooter() {
         }}
       >
         <div className="footer-brand">
-          <div
-            style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}
+          <Link
+            href="/"
+            style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12, color: "inherit", textDecoration: "none" }}
           >
             <span
               style={{ fontFamily: "var(--font-unifraktur), serif", fontSize: 20 }}
@@ -29,7 +30,7 @@ export function MarketingFooter() {
             >
               TERMINAL
             </span>
-          </div>
+          </Link>
           <div style={{ color: "#496552", lineHeight: "18px" }}>
             Sherwood Signals Ltd. Company no 15382077.
             <br />

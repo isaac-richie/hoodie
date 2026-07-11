@@ -94,13 +94,17 @@ export function AppSidebar() {
           overflowY: "auto",
         }}
       >
-        <div
+        <Link
+          href="/"
+          onClick={closeSidebar}
           style={{
             padding: "16px 18px",
             borderBottom: "1px solid var(--glass-border)",
             display: "flex",
             alignItems: "baseline",
             gap: 7,
+            color: "inherit",
+            textDecoration: "none",
           }}
         >
           <span
@@ -114,7 +118,7 @@ export function AppSidebar() {
           >
             TERMINAL
           </span>
-        </div>
+        </Link>
 
         {/* nav items */}
         <div style={{ padding: "14px 10px 8px", display: "flex", flexDirection: "column", gap: 1 }}>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { CommandBar } from "@/components/layout/CommandBar";
@@ -33,8 +34,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span style={{ display: "block", width: 16, height: 2, background: "#E6FBEA" }} />
               <span style={{ display: "block", width: 16, height: 2, background: "#E6FBEA" }} />
             </button>
-            <span style={{ fontFamily: "var(--font-unifraktur), serif", fontSize: 18, color: "#E6FBEA" }}>Hood</span>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.13em", color: "#00C805" }}>TERMINAL</span>
+            <Link
+              href="/"
+              style={{ display: "inline-flex", alignItems: "baseline", gap: 7, color: "inherit", textDecoration: "none" }}
+            >
+              <span style={{ fontFamily: "var(--font-unifraktur), serif", fontSize: 18, color: "#E6FBEA" }}>Hood</span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.13em", color: "#00C805" }}>TERMINAL</span>
+            </Link>
           </div>
           {!hideCommandBar && <CommandBar />}
           <main style={{ flex: 1, padding: "14px 14px 56px", minWidth: 0 }}>
