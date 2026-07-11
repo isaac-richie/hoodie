@@ -310,7 +310,7 @@ function NewScanBar() {
   );
 }
 
-function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: () => void }) {
+function ScanResultView({ result, onRescan, rescanning }: { result: ScanResult; onRescan: () => void; rescanning: boolean }) {
   const [activeTab, setActiveTab] = useState<(typeof MODULE_TABS)[number]>("All");
   const addToQuiver = useQuiverStore((state) => state.add);
   const isInQuiver = useQuiverStore((state) => state.has(result.tokenAddress));
@@ -339,9 +339,10 @@ function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: ()
         </span>
         <button
           onClick={onRescan}
-          style={{ marginLeft: "auto", background: "transparent", border: "1px solid #164A2A", color: "#00C805", fontSize: 11, padding: "5px 12px", cursor: "pointer", borderRadius: 3 }}
+          disabled={rescanning}
+          style={{ marginLeft: "auto", background: "transparent", border: "1px solid #164A2A", color: rescanning ? "#FFB020" : "#00C805", fontSize: 11, padding: "5px 12px", cursor: rescanning ? "wait" : "pointer", borderRadius: 3 }}
         >
-          Rescan
+          {rescanning ? "Rescanning…" : "Rescan"}
         </button>
         <button
           onClick={() => addToQuiver(result.tokenAddress)}
@@ -605,5 +606,11 @@ export default function ScanPage() {
     return <EmptyState title="No scan data returned" message="The API completed without returning a scan payload. That response shape needs backend attention." />;
   }
 
-  return <ScanResultView result={scan.data} onRescan={() => scan.refetch()} />;
+  return (
+    <ScanResultView
+      result={scan.data}
+      onRescan={() => scan.rescan.mutate()}
+      rescanning={scan.rescan.isPending}
+    />
+  );
 }

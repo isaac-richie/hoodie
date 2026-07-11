@@ -26,15 +26,27 @@ import { resolveMarketData } from "../services/market-data.js";
 import { persistScanResult } from "./persist.js";
 import { logger } from "../utils/logger.js";
 
-export async function scanToken(tokenAddress: Address): Promise<ScanResult> {
+export async function scanToken(
+  tokenAddress: Address,
+  opts: { fresh?: boolean } = {}
+): Promise<ScanResult> {
   const start = Date.now();
   const addr = tokenAddress.toLowerCase() as Address;
 
-  // Check cache first
-  const cached = await redis.get(CACHE_KEYS.scanResult(addr));
-  if (cached) {
-    logger.info({ tokenAddress: addr }, "scan cache hit");
-    return JSON.parse(cached);
+  // Check cache first — unless the caller explicitly asked for a fresh scan
+  // (the Rescan button). Without this bypass, rescanning inside the cache TTL
+  // silently returned the identical cached result and looked like a no-op.
+  if (!opts.fresh) {
+    const cached = await redis.get(CACHE_KEYS.scanResult(addr));
+    if (cached) {
+      logger.info({ tokenAddress: addr }, "scan cache hit");
+      return JSON.parse(cached);
+    }
+  } else {
+    // Also drop the cached token metadata so deployer/LP/launchpad get another
+    // attempt — a rescan exists precisely to fill in what the last pass missed.
+    await redis.del(CACHE_KEYS.scanResult(addr), CACHE_KEYS.tokenMeta(addr));
+    logger.info({ tokenAddress: addr }, "fresh scan requested — cache bypassed");
   }
 
   // Build scan context

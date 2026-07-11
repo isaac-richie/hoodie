@@ -265,8 +265,8 @@ export function apiDelete<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: "DELETE" });
 }
 
-export function getTokenScan(address: string) {
-  return apiGet<ScanResult>(`/v1/scan/${address}`);
+export function getTokenScan(address: string, fresh = false) {
+  return apiGet<ScanResult>(`/v1/scan/${address}${fresh ? "?fresh=1" : ""}`);
 }
 
 export function getPulse() {

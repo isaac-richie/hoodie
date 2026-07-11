@@ -26,14 +26,26 @@ import {
 
 export function useTokenScan(address: string | undefined) {
   const normalized = address?.trim();
+  const queryClient = useQueryClient();
+  const key = ["token-scan", normalized?.toLowerCase()];
 
-  return useQuery({
-    queryKey: ["token-scan", normalized?.toLowerCase()],
+  const query = useQuery({
+    queryKey: key,
     queryFn: () => getTokenScan(normalized as `0x${string}`),
     enabled: Boolean(normalized && isAddress(normalized)),
     retry: 1,
     staleTime: 30_000,
   });
+
+  // A plain refetch would return the backend's cached result and look like a
+  // no-op. rescan() forces the engine to bypass its cache and run all modules
+  // again, then swaps the fresh result into the query cache.
+  const rescan = useMutation({
+    mutationFn: () => getTokenScan(normalized as `0x${string}`, true),
+    onSuccess: (result) => queryClient.setQueryData(key, result),
+  });
+
+  return { ...query, rescan };
 }
 
 export function usePulse() {

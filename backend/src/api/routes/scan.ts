@@ -15,18 +15,26 @@ import { isAddress } from "viem";
 import { sendApiError } from "../errors.js";
 import { applyModuleGate, enforceScanQuota, requireScope } from "../product-rules.js";
 import { withScanSlot, ScanOverloadedError } from "../scan-limiter.js";
+import { logger } from "../../utils/logger.js";
 
 const scanBodySchema = z.object({
   token: z.string().refine((v) => isAddress(v), "Invalid token address"),
+  fresh: z.boolean().optional(),
 });
+
+function wantsFresh(query: unknown): boolean {
+  const fresh = (query as Record<string, unknown> | undefined)?.fresh;
+  return fresh === "1" || fresh === "true";
+}
 
 function handleScanError(reply: Parameters<typeof sendApiError>[0], err: unknown) {
   if (err instanceof ScanOverloadedError) {
     return sendApiError(reply, 503, "SCAN_OVERLOADED", "scanner is busy — try again in a moment");
   }
-  return sendApiError(reply, 500, "SCAN_FAILED", "scan failed", {
-    message: (err as Error).message,
-  });
+  // Log the real error server-side; never echo raw internals (provider URLs,
+  // library error text) to the client.
+  logger.error({ err }, "scan failed");
+  return sendApiError(reply, 500, "SCAN_FAILED", "the scan hit an unexpected error — try again in a moment");
 }
 
 export async function scanRoutes(app: FastifyInstance) {
@@ -46,7 +54,9 @@ export async function scanRoutes(app: FastifyInstance) {
     if (!(await enforceScanQuota(req, reply))) return;
 
     try {
-      const rawResult = await withScanSlot(() => scanToken(body.data.token as `0x${string}`));
+      const rawResult = await withScanSlot(() =>
+        scanToken(body.data.token as `0x${string}`, { fresh: body.data.fresh === true })
+      );
       const result = applyModuleGate(rawResult, req);
 
       // Check if partial (some modules timed out)
@@ -72,7 +82,9 @@ export async function scanRoutes(app: FastifyInstance) {
       if (!(await enforceScanQuota(req, reply))) return;
 
       try {
-        const rawResult = await withScanSlot(() => scanToken(address as `0x${string}`));
+        const rawResult = await withScanSlot(() =>
+          scanToken(address as `0x${string}`, { fresh: wantsFresh(req.query) })
+        );
         const result = applyModuleGate(rawResult, req);
 
         if (result.modulesRan < result.modulesTotal) {
