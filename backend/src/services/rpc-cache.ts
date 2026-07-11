@@ -310,7 +310,9 @@ export const cachedRpc = {
     args?: readonly unknown[];
     ttlMs?: number;
   }): Promise<unknown> {
-    const argsKey = params.args ? JSON.stringify(params.args) : "";
+    // bigIntReplacer: plain JSON.stringify throws on BigInt args (e.g. NFT
+    // tokenIds), which silently killed every read that used them.
+    const argsKey = params.args ? JSON.stringify(params.args, bigIntReplacer) : "";
     const key = `read:${params.address.toLowerCase()}:${params.functionName}:${argsKey}`;
     const ttl = params.ttlMs ?? 30_000;
 
@@ -380,7 +382,7 @@ export const cachedRpc = {
     const isHistorical = params.toBlock !== "latest";
     const toBlockStr = params.toBlock === "latest" ? "latest" : params.toBlock.toString();
     const eventKey = JSON.stringify(params.event);
-    const argsKey = params.args ? JSON.stringify(params.args) : "";
+    const argsKey = params.args ? JSON.stringify(params.args, bigIntReplacer) : "";
     const key = `logs:${params.address.toLowerCase()}:${params.fromBlock}:${toBlockStr}:${eventKey}:${argsKey}`;
 
     // For historical (both blocks confirmed), check Redis

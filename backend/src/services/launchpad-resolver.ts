@@ -35,8 +35,11 @@ export interface LaunchpadInfo {
 
 const ARROWPAD_ADDRESS = "0x5d2391cf88cd48bb6b9ec12b38bc8119562f9012";
 const NOXA_FACTORY_ADDRESS = "0xd9ec2db5f3d1b236843925949fe5bd8a3836fccb";
-const NOXA_LOCKER = "0x7F03effbd7ceB22A3f80Dd468f67eF27826acD85" as Address;
-const NOXA_NFT_MANAGER = "0x73991a25c818bf1f1128deaab1492d45638de0d3" as Address;
+// Exported: the lp-lock module reuses these for its generic V3 NFT-position
+// lock check — the NFT manager is the chain's Uniswap V3 NonfungiblePositionManager.
+export const NOXA_LOCKER = "0x7F03effbd7ceB22A3f80Dd468f67eF27826acD85" as Address;
+export const V3_POSITION_MANAGER = "0x73991a25c818bf1f1128deaab1492d45638de0d3" as Address;
+const NOXA_NFT_MANAGER = V3_POSITION_MANAGER;
 
 const tokenCreatedEvent = {
   type: "event" as const,
