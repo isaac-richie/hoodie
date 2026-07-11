@@ -27,6 +27,37 @@ import { robinhoodChain } from "../config/chain.js";
 import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
 
+// ─── Redis: best-effort cache access ──────────────────────────────────────────
+// The cache must never be a hard dependency of a scan. If Redis is down or slow,
+// reads degrade to a cache miss (→ direct RPC) and writes are dropped, rather
+// than throwing and failing the whole scan. In-memory LRU still absorbs load.
+let redisDegradedLoggedAt = 0;
+function noteRedisDown(err: unknown) {
+  const now = Date.now();
+  if (now - redisDegradedLoggedAt > 30_000) {
+    redisDegradedLoggedAt = now;
+    logger.warn({ err: (err as Error)?.message }, "Redis unavailable — serving from RPC/LRU without cache");
+  }
+}
+
+async function redisGetSafe(key: string): Promise<string | null> {
+  try {
+    return await redis.get(key);
+  } catch (err) {
+    noteRedisDown(err);
+    return null;
+  }
+}
+
+async function redisSetSafe(key: string, value: string, ttlSeconds?: number): Promise<void> {
+  try {
+    if (ttlSeconds) await redis.setex(key, ttlSeconds, value);
+    else await redis.set(key, value);
+  } catch (err) {
+    noteRedisDown(err);
+  }
+}
+
 // ─── In-Memory LRU Cache ──────────────────────────────────────────────────────
 
 class LRUCache<V> {
@@ -168,7 +199,7 @@ export const cachedRpc = {
     }
 
     // Redis cache
-    const redisCached = await redis.get(key);
+    const redisCached = await redisGetSafe(key);
     if (redisCached) {
       rpcCacheHits++;
       bytecodeCache.set(key, redisCached as Hex); // warm memory
@@ -184,7 +215,7 @@ export const cachedRpc = {
     if (code) {
       bytecodeCache.set(key, code);
       // Store in Redis forever — bytecode is immutable
-      await redis.set(key, code);
+      await redisSetSafe(key, code);
     }
 
     return code;
@@ -220,7 +251,7 @@ export const cachedRpc = {
       return cached;
     }
 
-    const redisCached = await redis.get(key);
+    const redisCached = await redisGetSafe(key);
     if (redisCached) {
       rpcCacheHits++;
       storageCache.set(key, redisCached as Hex, immutable ? 0 : 60_000);
@@ -234,7 +265,7 @@ export const cachedRpc = {
 
     if (value) {
       storageCache.set(key, value, immutable ? 0 : 60_000);
-      await redis.setex(key, immutable ? 86400 * 30 : 120, value);
+      await redisSetSafe(key, value, immutable ? 86400 * 30 : 120);
     }
 
     return value;
@@ -291,7 +322,7 @@ export const cachedRpc = {
     }
 
     // Redis cache
-    const redisCached = await redis.get(key);
+    const redisCached = await redisGetSafe(key);
     if (redisCached) {
       rpcCacheHits++;
       const parsed = JSON.parse(redisCached, bigIntReviver);
@@ -310,7 +341,7 @@ export const cachedRpc = {
     });
 
     storageCache.set(key, result as any, ttl);
-    await redis.setex(key, Math.ceil(ttl / 1000), JSON.stringify(result, bigIntReplacer));
+    await redisSetSafe(key, JSON.stringify(result, bigIntReplacer), Math.ceil(ttl / 1000));
 
     return result;
   },
@@ -354,7 +385,7 @@ export const cachedRpc = {
 
     // For historical (both blocks confirmed), check Redis
     if (isHistorical) {
-      const redisCached = await redis.get(key);
+      const redisCached = await redisGetSafe(key);
       if (redisCached) {
         rpcCacheHits++;
         return JSON.parse(redisCached, bigIntReviver);
@@ -374,10 +405,10 @@ export const cachedRpc = {
 
     // Cache historical logs forever in Redis (they can't change)
     if (isHistorical && (logs as any[]).length > 0) {
-      await redis.set(key, JSON.stringify(logs, bigIntReplacer));
+      await redisSetSafe(key, JSON.stringify(logs, bigIntReplacer));
     } else if (!isHistorical) {
       // Cache "latest" logs for 30s
-      await redis.setex(key, 30, JSON.stringify(logs, bigIntReplacer));
+      await redisSetSafe(key, JSON.stringify(logs, bigIntReplacer), 30);
     }
 
     return logs as any[];

@@ -17,8 +17,11 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
+import { sql } from "drizzle-orm";
 import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
+import { redis } from "../config/redis.js";
+import { db } from "../db/client.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { scanRoutes } from "./routes/scan.js";
 import { tokenRoutes } from "./routes/token.js";
@@ -31,7 +34,10 @@ import { sendApiError } from "./errors.js";
 
 export async function createServer() {
   const app = Fastify({
-    logger: false,
+    // Per-request access logging, off by default to keep dev output clean.
+    logger: env.requestLogging
+      ? { level: "info", transport: env.nodeEnv === "development" ? { target: "pino-pretty" } : undefined }
+      : false,
     // Only trust X-Forwarded-For when explicitly behind a known proxy. Otherwise
     // a client could spoof XFF to forge its identity and bypass rate limits/quotas.
     trustProxy: env.trustProxy,
@@ -68,12 +74,41 @@ export async function createServer() {
   // Auth middleware (skips /health, skips dev without REQUIRE_AUTH)
   app.addHook("onRequest", authMiddleware);
 
+  // Shallow liveness — is the process up and serving?
   app.get("/health", async () => ({
     status: "alive",
     version: "0.1.0",
     chain: "robinhood",
     timestamp: Date.now(),
   }));
+
+  // Deep readiness — are the dependencies this instance needs actually reachable?
+  // A load balancer should route on this, not /health, so a DB/Redis-degraded
+  // instance is pulled from rotation instead of silently serving errors.
+  app.get("/ready", async (_req, reply) => {
+    const checks: Record<string, "ok" | "down"> = {};
+
+    try {
+      await redis.ping();
+      checks.redis = "ok";
+    } catch {
+      checks.redis = "down";
+    }
+
+    try {
+      await db.execute(sql`select 1`);
+      checks.database = "ok";
+    } catch {
+      checks.database = "down";
+    }
+
+    const healthy = Object.values(checks).every((v) => v === "ok");
+    return reply.status(healthy ? 200 : 503).send({
+      status: healthy ? "ready" : "degraded",
+      checks,
+      timestamp: Date.now(),
+    });
+  });
 
   await app.register(scanRoutes);
   await app.register(tokenRoutes);

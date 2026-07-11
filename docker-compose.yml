@@ -19,6 +19,10 @@ services:
   redis:
     image: redis:7-alpine
     container_name: hood-terminal-redis
+    # Bound memory and evict least-recently-used keys instead of growing without
+    # limit (bytecode/log caches have long/no TTLs). Prevents a scheduled OOM on
+    # a public, scan-heavy service. Tune maxmemory to the host.
+    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
       - "6379:6379"
     volumes:

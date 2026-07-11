@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { ScanResult } from "../engine/types.js";
 import { redis, CACHE_KEYS } from "../config/redis.js";
 import { sendApiError } from "./errors.js";
+import { logger } from "../utils/logger.js";
 
 export type ProductTier = "guest" | "free" | "pro" | "team";
 
@@ -57,7 +58,18 @@ export async function enforceScanQuota(request: FastifyRequest, reply: FastifyRe
   const dailyKey = CACHE_KEYS.rateLimit(`scan:${tier}:${identity}:${day}`);
   const minuteKey = CACHE_KEYS.rateLimit(`scan-rpm:${tier}:${identity}:${minute}`);
 
-  const [daily, rpm] = await Promise.all([increment(dailyKey, 86400), increment(minuteKey, 120)]);
+  let daily: number;
+  let rpm: number;
+  try {
+    [daily, rpm] = await Promise.all([increment(dailyKey, 86400), increment(minuteKey, 120)]);
+  } catch (err) {
+    // The quota counters live in Redis. If Redis is briefly unavailable, fail
+    // OPEN (allow the scan) so an outage degrades gracefully instead of blocking
+    // every scan — normal metering resumes as soon as Redis is back.
+    logger.warn({ err: (err as Error)?.message }, "scan quota check skipped — Redis unavailable");
+    return true;
+  }
+
   if (daily > policy.dailyScans) {
     sendApiError(reply, 429, "SCAN_QUOTA_EXCEEDED", `${tier} tier scan quota exceeded`, {
       tier,

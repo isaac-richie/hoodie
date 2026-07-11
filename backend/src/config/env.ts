@@ -33,6 +33,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().optional().default(3001),
   HOST: z.string().optional().default("0.0.0.0"),
   NODE_ENV: z.enum(["development", "test", "production"]).optional().default("development"),
+  // Which parts of the process to run: "all" (default, single-process), "api"
+  // (HTTP only), or "worker" (background discovery/scan/alert workers only).
+  // Lets the API and workers be scaled independently without code changes.
+  ROLE: z.enum(["all", "api", "worker"]).optional().default("all"),
+  // Enable Fastify per-request access logging.
+  REQUEST_LOGGING: boolFromEnv,
   REQUIRE_AUTH: boolFromEnv,
   SESSION_SECRET: z.string().optional().default("dev-session-secret-change-me"),
   // Comma-separated allowlist of origins permitted to send credentialed requests.
@@ -112,6 +118,8 @@ export const env = {
   port: values.PORT,
   host: values.HOST,
   nodeEnv: values.NODE_ENV,
+  role: values.ROLE,
+  requestLogging: values.REQUEST_LOGGING,
   requireAuth: values.REQUIRE_AUTH,
   sessionSecret: values.SESSION_SECRET,
   corsOrigins,
