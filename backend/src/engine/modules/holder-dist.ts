@@ -15,6 +15,7 @@
  */
 import { cachedRpc } from "../../services/rpc-cache.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 import { traceFundingOrigins } from "../../services/funding-tracer.js";
 import type { Address } from "viem";
 
@@ -33,8 +34,8 @@ export const holderDistModule: ScanModule = {
           status: "warn",
           score: 40,
           weight: 12,
-          label: "deploy block unknown — skipped",
-          detail: "Deployer/deploy-block resolution failed for this token, so holder history can't be scoped to a safe block range. Re-run the scan once deployer info resolves.",
+          label: "holder breakdown pending",
+          detail: "We couldn't pin down exactly when this token launched, so the full holder breakdown isn't ready yet. Hit \"run again\" in a moment — this usually resolves on a second scan.",
           evidence: {},
           durationMs: Date.now() - start,
         };
@@ -80,8 +81,8 @@ export const holderDistModule: ScanModule = {
         status: "error",
         score: 40,
         weight: 12,
-        label: "holder analysis failed",
-        detail: (err as Error).message,
+        label: "holder distribution check unavailable",
+        detail: friendlyError(err, "holder distribution"),
         evidence: {},
         durationMs: Date.now() - start,
       };

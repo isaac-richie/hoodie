@@ -15,6 +15,7 @@ import { cachedRpc } from "../../services/rpc-cache.js";
 import { traceFundingOrigins } from "../../services/funding-tracer.js";
 import { erc20Abi } from "../../utils/abis.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 
 export const sniperDetectModule: ScanModule = {
   name: "sniper_detect",
@@ -31,8 +32,8 @@ export const sniperDetectModule: ScanModule = {
           status: "warn",
           score: 15,
           weight: 8,
-          label: "deploy block unknown",
-          detail: "Cannot detect snipers without deploy block.",
+          label: "sniper check pending",
+          detail: "We couldn't pin down exactly when this token launched, so the launch-sniping check isn't ready yet. Hit \"run again\" in a moment — this usually resolves on a second scan.",
           evidence: {},
           durationMs: Date.now() - start,
         };
@@ -76,8 +77,8 @@ export const sniperDetectModule: ScanModule = {
         status: "error",
         score: 15,
         weight: 8,
-        label: "sniper detection failed",
-        detail: (err as Error).message,
+        label: "launch sniping check unavailable",
+        detail: friendlyError(err, "launch sniping"),
         evidence: {},
         durationMs: Date.now() - start,
       };

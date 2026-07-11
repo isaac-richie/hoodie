@@ -13,6 +13,7 @@
  */
 import { cachedRpc } from "../../services/rpc-cache.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 
 export const hiddenMintModule: ScanModule = {
   name: "hidden_mint",
@@ -61,8 +62,8 @@ export const hiddenMintModule: ScanModule = {
         status: "error",
         score: 30,
         weight: 11,
-        label: "mint check failed",
-        detail: (err as Error).message,
+        label: "hidden-mint check unavailable",
+        detail: friendlyError(err, "hidden-mint"),
         evidence: {},
         durationMs: Date.now() - start,
       };

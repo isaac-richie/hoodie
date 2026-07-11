@@ -14,6 +14,7 @@
 import { cachedRpc } from "../../services/rpc-cache.js";
 import { traceFundingOrigins } from "../../services/funding-tracer.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 import type { Address } from "viem";
 
 export const freshWalletModule: ScanModule = {
@@ -31,8 +32,8 @@ export const freshWalletModule: ScanModule = {
           status: "warn",
           score: 15,
           weight: 6,
-          label: "deploy block unknown — skipped",
-          detail: "Deployer/deploy-block resolution failed for this token, so holder history can't be scoped to a safe block range. Re-run the scan once deployer info resolves.",
+          label: "wallet-age check pending",
+          detail: "We couldn't pin down exactly when this token launched, so we can't tell yet how many holders are brand-new wallets. Hit \"run again\" in a moment — this usually resolves on a second scan.",
           evidence: {},
           durationMs: Date.now() - start,
         };
@@ -78,8 +79,8 @@ export const freshWalletModule: ScanModule = {
         status: "error",
         score: 15,
         weight: 6,
-        label: "fresh wallet analysis failed",
-        detail: (err as Error).message,
+        label: "fresh-wallet check unavailable",
+        detail: friendlyError(err, "fresh-wallet"),
         evidence: {},
         durationMs: Date.now() - start,
       };

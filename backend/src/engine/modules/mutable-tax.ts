@@ -12,6 +12,7 @@
  */
 import { cachedRpc } from "../../services/rpc-cache.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 
 export const mutableTaxModule: ScanModule = {
   name: "mutable_tax",
@@ -64,8 +65,8 @@ export const mutableTaxModule: ScanModule = {
         status: "error",
         score: 20,
         weight: 9,
-        label: "tax check failed",
-        detail: (err as Error).message,
+        label: "tax check unavailable",
+        detail: friendlyError(err, "buy/sell tax"),
         evidence: {},
         durationMs: Date.now() - start,
       };

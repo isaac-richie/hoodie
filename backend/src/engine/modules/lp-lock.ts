@@ -13,6 +13,7 @@ import { cachedRpc } from "../../services/rpc-cache.js";
 import { contractConfig } from "../../config/contracts.js";
 import { erc20Abi } from "../../utils/abis.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 
 export const lpLockModule: ScanModule = {
   name: "lp_lock",
@@ -105,8 +106,8 @@ export const lpLockModule: ScanModule = {
         status: "error",
         score: 50,
         weight: 12,
-        label: "LP check failed",
-        detail: (err as Error).message,
+        label: "liquidity-lock check unavailable",
+        detail: friendlyError(err, "liquidity lock"),
         evidence: {},
         durationMs: Date.now() - start,
       };

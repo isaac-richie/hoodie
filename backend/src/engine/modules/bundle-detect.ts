@@ -14,6 +14,7 @@
 import { cachedRpc } from "../../services/rpc-cache.js";
 import { traceFundingOrigins } from "../../services/funding-tracer.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 
 export const bundleDetectModule: ScanModule = {
   name: "bundle_detect",
@@ -30,8 +31,8 @@ export const bundleDetectModule: ScanModule = {
           status: "warn",
           score: 30,
           weight: 13,
-          label: "deploy block unknown — cannot check bundles",
-          detail: "Could not determine deploy block for bundle analysis.",
+          label: "bundle check pending",
+          detail: "We couldn't pin down exactly when this token launched, so the launch-bundling check isn't ready yet. Hit \"run again\" in a moment — this usually resolves on a second scan.",
           evidence: {},
           durationMs: Date.now() - start,
         };
@@ -77,8 +78,8 @@ export const bundleDetectModule: ScanModule = {
         status: "error",
         score: 40,
         weight: 13,
-        label: "bundle detection failed",
-        detail: (err as Error).message,
+        label: "launch bundling check unavailable",
+        detail: friendlyError(err, "launch bundling"),
         evidence: {},
         durationMs: Date.now() - start,
       };

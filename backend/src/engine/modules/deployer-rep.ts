@@ -14,6 +14,7 @@
  */
 import { cachedRpc } from "../../services/rpc-cache.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 import { logger } from "../../utils/logger.js";
 import { db } from "../../db/client.js";
 import { deployers, tokens } from "../../db/schema.js";
@@ -34,8 +35,8 @@ export const deployerRepModule: ScanModule = {
           status: "warn",
           score: 20,
           weight: 14,
-          label: "deployer unknown",
-          detail: "Could not identify the deployer wallet.",
+          label: "creator wallet not identified yet",
+          detail: "We couldn't confirm which wallet created this token on this pass, so there's no creator track record to show yet. Hit \"run again\" in a moment — this usually resolves on a second scan.",
           evidence: {},
           durationMs: Date.now() - start,
         };
@@ -85,8 +86,8 @@ export const deployerRepModule: ScanModule = {
         status: "error",
         score: 30,
         weight: 14,
-        label: "deployer check failed",
-        detail: (err as Error).message,
+        label: "creator history check unavailable",
+        detail: friendlyError(err, "creator history"),
         evidence: {},
         durationMs: Date.now() - start,
       };

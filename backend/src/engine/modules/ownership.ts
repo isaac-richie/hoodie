@@ -10,6 +10,7 @@
  */
 import { cachedRpc } from "../../services/rpc-cache.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 import { getAddress } from "viem";
 
 const OWNER_SELECTORS = [
@@ -68,8 +69,8 @@ export const ownershipModule: ScanModule = {
         status: "error",
         score: 30,
         weight: 8,
-        label: "ownership check failed",
-        detail: (err as Error).message,
+        label: "ownership check unavailable",
+        detail: friendlyError(err, "contract ownership"),
         evidence: {},
         durationMs: Date.now() - start,
       };

@@ -13,6 +13,7 @@
  */
 import { cachedRpc } from "../../services/rpc-cache.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 import { erc20Abi } from "../../utils/abis.js";
 import { contractConfig } from "../../config/contracts.js";
 import type { Address } from "viem";
@@ -141,9 +142,9 @@ export const honeypotModule: ScanModule = {
         status: "error",
         score: 50,
         weight: 15,
-        label: "simulation failed",
-        detail: `Could not simulate trade: ${(err as Error).message}`,
-        evidence: { error: (err as Error).message },
+        label: "sell test unavailable",
+        detail: friendlyError(err, "can-you-sell"),
+        evidence: {},
         durationMs: Date.now() - start,
       };
     }

@@ -15,6 +15,7 @@
  */
 import { cachedRpc } from "../../services/rpc-cache.js";
 import type { ScanModule, ScanContext, ModuleResult } from "../types.js";
+import { friendlyError } from "../../utils/friendly-error.js";
 
 const SCAM_TEMPLATES: { id: string; pattern: string; name: string }[] = [
   // Populate from confirmed rugs: { id: "honeypot-v1", pattern: "6080604052...", name: "Classic Honeypot" }
@@ -75,8 +76,8 @@ export const scamTemplateModule: ScanModule = {
         status: "error",
         score: 10,
         weight: 10,
-        label: "template check failed",
-        detail: (err as Error).message,
+        label: "scam-pattern check unavailable",
+        detail: friendlyError(err, "scam-pattern"),
         evidence: {},
         durationMs: Date.now() - start,
       };
