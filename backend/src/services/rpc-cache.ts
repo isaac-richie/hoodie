@@ -424,6 +424,36 @@ export const cachedRpc = {
    * for the newest chunk (the "latest"-bounded tail) — older chunks are
    * cached forever once fetched.
    */
+  /**
+   * Cheap density probe for infrastructure-grade tokens (WETH, stablecoins)
+   * whose full log history is unfetchable — a single 2k-block WETH chunk
+   * already exceeds the HTTP response size limit and takes ~15s to fail.
+   *
+   * Two tiny 100-block probes: one at head, one ~500k blocks back. Only
+   * SUSTAINED density at both points marks the token dense — a young trending
+   * token is busy now but has no history half a million blocks ago, and its
+   * holder forensics are exactly what users want.
+   */
+  async isDenseLogSource(address: Address, event: unknown): Promise<boolean> {
+    const head = await this.getBlockNumber();
+    const probe = async (fromBlock: bigint): Promise<boolean> => {
+      try {
+        const logs = await this.getLogs({
+          address,
+          event,
+          fromBlock: fromBlock > 0n ? fromBlock : 0n,
+          toBlock: fromBlock + 99n,
+        });
+        return logs.length >= 300; // 3+ events per block, sustained
+      } catch {
+        return true; // even 100 blocks over-limit — extreme density
+      }
+    };
+
+    if (!(await probe(head - 100n))) return false;
+    return probe(head - 500_000n);
+  },
+
   async getLogsChunked(params: {
     address: Address;
     event: unknown;
@@ -433,6 +463,19 @@ export const cachedRpc = {
     maxRangeBlocks?: number;
     concurrency?: number;
     maxChunks?: number;
+    // Stop fetching once this many logs have accumulated. High-volume tokens
+    // (WETH sees transfers in every block) can return megabytes per chunk —
+    // callers doing statistical analysis don't need an exhaustive set.
+    maxLogs?: number;
+    // Skip chunks that fail instead of rejecting the whole scan. Dense tokens
+    // can exceed the provider's per-response log limit for a single chunk;
+    // statistical callers prefer a partial sample over an error. Throws only
+    // if every chunk failed (an empty "success" would mislead scoring).
+    bestEffort?: boolean;
+    // Wall-clock budget: stop issuing new batches once elapsed. Failing chunks
+    // burn seconds each in transport retries — a chunk cap alone doesn't bound
+    // time when chunks are slow rather than numerous.
+    deadlineMs?: number;
   }): Promise<any[]> {
     const maxRange = BigInt(params.maxRangeBlocks ?? 9_000);
     const concurrency = params.concurrency ?? 5;
@@ -467,20 +510,53 @@ export const cachedRpc = {
     }
 
     const allLogs: any[] = [];
+    let failedChunks = 0;
+    const startedAt = Date.now();
     for (let i = 0; i < ranges.length; i += concurrency) {
+      if (params.deadlineMs !== undefined && Date.now() - startedAt > params.deadlineMs) {
+        logger.warn(
+          { elapsedMs: Date.now() - startedAt, deadlineMs: params.deadlineMs, chunksFetched: i, totalChunks: ranges.length, collected: allLogs.length },
+          "getLogsChunked: deadline reached, returning partial results"
+        );
+        break;
+      }
       const batch = ranges.slice(i, i + concurrency);
       const results = await Promise.all(
-        batch.map((range) =>
-          this.getLogs({
+        batch.map((range) => {
+          const chunkPromise = this.getLogs({
             address: params.address,
             event: params.event,
             args: params.args,
             fromBlock: range.from,
             toBlock: range.to,
-          })
-        )
+          });
+          return params.bestEffort
+            ? chunkPromise.catch(() => {
+                failedChunks++;
+                return [] as any[];
+              })
+            : chunkPromise;
+        })
       );
       for (const chunk of results) allLogs.push(...chunk);
+
+      if (params.maxLogs !== undefined && allLogs.length >= params.maxLogs) {
+        logger.warn(
+          { collected: allLogs.length, maxLogs: params.maxLogs, chunksFetched: i + batch.length, totalChunks: ranges.length },
+          "getLogsChunked: log cap reached, stopping early"
+        );
+        break;
+      }
+    }
+
+    if (failedChunks > 0) {
+      logger.warn(
+        { failedChunks, totalChunks: ranges.length, collected: allLogs.length },
+        "getLogsChunked: some chunks failed (best-effort mode)"
+      );
+      if (allLogs.length === 0) {
+        throw new Error(`log scan failed: all ${failedChunks} attempted chunks errored`);
+      }
     }
 
     return allLogs;

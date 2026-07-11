@@ -41,6 +41,22 @@ export const holderDistModule: ScanModule = {
         };
       }
 
+      // Infrastructure-grade tokens (WETH, stablecoins) transfer in nearly
+      // every block — reconstructing holders from logs is hopeless and the
+      // failed attempts starve the RPC for every other module. Skip honestly.
+      if (await cachedRpc.isDenseLogSource(ctx.tokenAddress, TRANSFER_EVENT)) {
+        return {
+          module: "holder_distribution",
+          status: "pass",
+          score: 10,
+          weight: 12,
+          label: "holder scan skipped — extremely high transfer volume",
+          detail: "This token transfers in nearly every block (typical for WETH, stablecoins, and other infrastructure tokens). Reconstructing individual holder balances isn't feasible at this volume, and tokens this heavily used aren't stealth-rug candidates.",
+          evidence: { highVolume: true },
+          durationMs: Date.now() - start,
+        };
+      }
+
       const dist = await analyzeDistribution(ctx);
 
       let score: number;
@@ -90,6 +106,16 @@ export const holderDistModule: ScanModule = {
   },
 };
 
+const TRANSFER_EVENT = {
+  type: "event" as const,
+  name: "Transfer",
+  inputs: [
+    { type: "address", indexed: true, name: "from" },
+    { type: "address", indexed: true, name: "to" },
+    { type: "uint256", indexed: false, name: "value" },
+  ],
+};
+
 interface Distribution {
   holderCount: number;
   top1Pct: number;
@@ -107,17 +133,25 @@ async function analyzeDistribution(ctx: ScanContext): Promise<Distribution> {
 
   const logs = await cachedRpc.getLogsChunked({
     address: ctx.tokenAddress,
-    event: {
-      type: "event",
-      name: "Transfer",
-      inputs: [
-        { type: "address", indexed: true, name: "from" },
-        { type: "address", indexed: true, name: "to" },
-        { type: "uint256", indexed: false, name: "value" },
-      ],
-    },
+    event: TRANSFER_EVENT,
     fromBlock: BigInt(ctx.deployBlock ?? 0),
     toBlock: "latest",
+    // 120 chunks ≈ 1.08M blocks. Older tokens get the most recent window —
+    // slightly approximate for wallets that only moved early, but it keeps
+    // this module inside its timeout instead of scanning millions of blocks.
+    // Small chunks keep per-response payloads sane: a 9k-block chunk of a
+    // busy token can be 10k logs (~5MB JSON) and 10 of those in flight seize
+    // the event loop, starving every other module. 2k-block chunks keep the
+    // deadline check responsive and Redis entries small.
+    maxRangeBlocks: 2_000,
+    maxChunks: 60,
+    maxLogs: 40_000,
+    bestEffort: true,
+    deadlineMs: 8_000,
+    // Modest concurrency: two of these modules run at once, and flooding the
+    // provider with hundreds of parallel getLogs triggers rate-limit storms
+    // that starve every other module's simple reads.
+    concurrency: 4,
   });
 
   // Reconstruct balances from transfer events

@@ -39,6 +39,21 @@ export const freshWalletModule: ScanModule = {
         };
       }
 
+      // High-volume infrastructure tokens: see holder-dist.ts — a full log
+      // scan is infeasible and would starve the RPC for other modules.
+      if (await cachedRpc.isDenseLogSource(ctx.tokenAddress, TRANSFER_EVENT)) {
+        return {
+          module: "fresh_wallets",
+          status: "pass",
+          score: 0,
+          weight: 6,
+          label: "wallet-age check skipped — extremely high transfer volume",
+          detail: "This token transfers in nearly every block (typical for WETH, stablecoins, and other infrastructure tokens), so sampling holder wallet ages isn't meaningful here.",
+          evidence: { highVolume: true },
+          durationMs: Date.now() - start,
+        };
+      }
+
       const analysis = await analyzeFreshWallets(ctx);
 
       let score: number;
@@ -88,6 +103,16 @@ export const freshWalletModule: ScanModule = {
   },
 };
 
+const TRANSFER_EVENT = {
+  type: "event" as const,
+  name: "Transfer",
+  inputs: [
+    { type: "address", indexed: true, name: "from" },
+    { type: "address", indexed: true, name: "to" },
+    { type: "uint256", indexed: false, name: "value" },
+  ],
+};
+
 interface FreshWalletAnalysis {
   totalChecked: number;
   freshCount: number;
@@ -103,17 +128,24 @@ async function analyzeFreshWallets(ctx: ScanContext): Promise<FreshWalletAnalysi
   // Get Transfer events to find holder addresses
   const logs = await cachedRpc.getLogsChunked({
     address: ctx.tokenAddress,
-    event: {
-      type: "event",
-      name: "Transfer",
-      inputs: [
-        { type: "address", indexed: true, name: "from" },
-        { type: "address", indexed: true, name: "to" },
-        { type: "uint256", indexed: false, name: "value" },
-      ],
-    },
+    event: TRANSFER_EVENT,
     fromBlock: BigInt(ctx.deployBlock ?? 0),
     toBlock: "latest",
+    // Same bound as holder-dist: cap the Transfer scan so this module stays
+    // inside its timeout on tokens with long histories (see holder-dist.ts).
+    // Small chunks keep per-response payloads sane: a 9k-block chunk of a
+    // busy token can be 10k logs (~5MB JSON) and 10 of those in flight seize
+    // the event loop, starving every other module. 2k-block chunks keep the
+    // deadline check responsive and Redis entries small.
+    maxRangeBlocks: 2_000,
+    maxChunks: 60,
+    maxLogs: 40_000,
+    bestEffort: true,
+    deadlineMs: 8_000,
+    // Modest concurrency: two of these modules run at once, and flooding the
+    // provider with hundreds of parallel getLogs triggers rate-limit storms
+    // that starve every other module's simple reads.
+    concurrency: 4,
   });
 
   // Collect unique recipient addresses (exclude burn/zero)

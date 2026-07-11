@@ -144,6 +144,12 @@ const UNISWAP_V2_PAIR_ABI = [
 export async function findLpPool(tokenAddress: Address): Promise<LpPoolInfo | null> {
   const addr = tokenAddress.toLowerCase() as Address;
 
+  // The quote token itself (WETH) has no "LP pool" in the rug-risk sense —
+  // every strategy below would fail slowly hunting for a WETH/WETH pair.
+  if (contractConfig.quoteTokens.some((quote) => quote.toLowerCase() === addr)) {
+    return null;
+  }
+
   // Check Redis cache (pool address is stable, cache 10 min)
   const cached = await redis.get(`${CACHE_PREFIX}${addr}`);
   if (cached) return JSON.parse(cached);

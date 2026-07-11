@@ -18,39 +18,57 @@ import { cachedRpc } from "./rpc-cache.js";
 import { logger } from "../utils/logger.js";
 
 export interface DeployInfo {
-  deployer: Address;
-  deployBlock: number;
-  deployTx: string;
+  // deployer can be missing while deployBlock is known: factory/CREATE2 deploys
+  // where trace APIs are unavailable. A known deployBlock still unlocks the
+  // launchpad TokenLaunched-event fallback in token-meta.
+  deployer?: Address;
+  deployBlock?: number;
+  deployTx?: string;
 }
 
 const CACHE_PREFIX = "deploy:";
+const MISS_TTL_S = 300; // partial/failed lookups retry after 5 min
 
 export async function resolveDeployer(contractAddress: Address): Promise<DeployInfo | null> {
   const addr = contractAddress.toLowerCase();
 
   // Check Redis cache (immutable — deployer never changes)
   const cached = await redis.get(`${CACHE_PREFIX}${addr}`);
-  if (cached) return JSON.parse(cached);
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    return parsed === null ? null : parsed;
+  }
 
-  // Strategy 1: Alchemy's alchemy_getContractCreator (fastest)
+  // Strategy 1: Alchemy's alchemy_getContractCreator (fastest when supported)
   let result = await tryAlchemyCreator(addr as Address);
 
-  // Strategy 2: Etherscan-style API if available
-  if (!result) {
-    result = await tryExplorerApi(addr as Address);
+  // Strategies 2 + 3 in PARALLEL — the explorer is flaky and the creation-block
+  // search is many roundtrips; running them sequentially used to burn 15s+.
+  // First strategy to produce a deployer wins; a deployBlock-only partial is
+  // kept as a consolation result.
+  if (!result?.deployer) {
+    result = await new Promise<DeployInfo | null>((resolve) => {
+      let pending = 2;
+      let partial: DeployInfo | null = result ?? null;
+      const settle = (r: DeployInfo | null) => {
+        if (r?.deployer) return resolve(r);
+        if (r?.deployBlock && !partial?.deployBlock) partial = { ...partial, ...r };
+        if (--pending === 0) resolve(partial);
+      };
+      tryExplorerApi(addr as Address).then(settle, () => settle(null));
+      tryCreationBlockSearch(addr as Address).then(settle, () => settle(null));
+    });
   }
 
-  // Strategy 3: Binary search for creation block + trace
-  if (!result) {
-    result = await tryBinarySearchCreation(addr as Address);
-  }
-
-  if (result) {
-    // Cache forever — deploy info is immutable
+  if (result?.deployer) {
+    // Complete answer — cache forever, deploy info is immutable.
     await redis.set(`${CACHE_PREFIX}${addr}`, JSON.stringify(result));
     logger.info({ contractAddress: addr, deployer: result.deployer, block: result.deployBlock }, "deployer resolved");
   } else {
-    logger.warn({ contractAddress: addr }, "could not resolve deployer");
+    // Miss or partial — cache briefly so back-to-back scans don't repeat the
+    // whole waterfall, but a later scan can still fill in the deployer.
+    await redis.setex(`${CACHE_PREFIX}${addr}`, MISS_TTL_S, JSON.stringify(result ?? null));
+    logger.warn({ contractAddress: addr, deployBlock: result?.deployBlock }, "could not fully resolve deployer");
   }
 
   return result;
@@ -67,6 +85,7 @@ async function tryAlchemyCreator(address: Address): Promise<DeployInfo | null> {
         method: "alchemy_getContractCreator",
         params: [address],
       }),
+      signal: AbortSignal.timeout(2_500),
     });
 
     const data = await response.json() as {
@@ -116,10 +135,8 @@ async function tryExplorerApi(address: Address): Promise<DeployInfo | null> {
         deployTx: hit.txHash ?? "",
       };
     }
-
-    if (round < rounds - 1) {
-      await sleep(500);
-    }
+    // No sleep between rounds — the parallel creation-block search is already
+    // racing us, so retry immediately while we still have budget.
   }
 
   return null;
@@ -127,7 +144,7 @@ async function tryExplorerApi(address: Address): Promise<DeployInfo | null> {
 
 async function fetchCreator(url: string): Promise<{ contractCreator: string; txHash: string } | null> {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(2_500) });
     const data = await response.json() as {
       status?: string;
       result?: { contractCreator?: string; txHash?: string }[];
@@ -145,45 +162,58 @@ async function fetchCreator(url: string): Promise<{ contractCreator: string; txH
   return null;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function tryBinarySearchCreation(address: Address): Promise<DeployInfo | null> {
+async function tryCreationBlockSearch(address: Address): Promise<DeployInfo | null> {
   try {
     const currentBlock = Number(await cachedRpc.getBlockNumber());
-
-    // Binary search: find the first block where the contract has code
-    let low = 0;
-    let high = currentBlock;
-    let creationBlock = -1;
 
     // Quick check: does code exist now?
     const code = await cachedRpc.getCode(address);
     if (!code || code === "0x") return null;
 
-    while (low <= high) {
-      const mid = Math.floor((low + high) / 2);
+    // K-ary search for the first block where the contract has code. Probing
+    // PROBES points per round in parallel needs ~log_{PROBES+1}(N) roundtrips
+    // instead of log2(N) — for a 6.7M-block chain that's ~8 rounds instead
+    // of ~23, and each round is one parallel batch.
+    const PROBES = 6;
+    let low = 0;
+    let high = currentBlock;
 
-      try {
-        const codeAtMid = await cachedRpc.raw.getCode({
-          address,
-          blockNumber: BigInt(mid),
-        });
+    while (high - low > 0) {
+      const span = high - low;
+      const points = Array.from(
+        { length: Math.min(PROBES, span) },
+        (_, i) => low + Math.max(1, Math.floor((span * (i + 1)) / (Math.min(PROBES, span) + 1)))
+      );
 
-        if (codeAtMid && codeAtMid !== "0x") {
-          creationBlock = mid;
-          high = mid - 1;
-        } else {
-          low = mid + 1;
+      const results = await Promise.all(
+        points.map(async (blockNum) => {
+          try {
+            const codeAt = await cachedRpc.raw.getCode({ address, blockNumber: BigInt(blockNum) });
+            return Boolean(codeAt && codeAt !== "0x");
+          } catch {
+            return false;
+          }
+        })
+      );
+
+      // Narrow to the segment between the last "no code" point and the first
+      // "has code" point.
+      let newLow = low;
+      let newHigh = high;
+      for (let i = 0; i < points.length; i++) {
+        if (results[i]) {
+          newHigh = points[i];
+          break;
         }
-      } catch {
-        // Block might not exist or RPC error — skip
-        low = mid + 1;
+        newLow = points[i];
       }
+      if (newLow === low && newHigh === high) break; // no progress — bail
+      low = newLow;
+      high = newHigh;
     }
 
-    if (creationBlock < 0) return null;
+    const creationBlock = high;
+    if (creationBlock <= 0) return null;
 
     // Get the block and find the creation tx
     const block = await cachedRpc.raw.getBlock({
@@ -218,9 +248,11 @@ async function tryBinarySearchCreation(address: Address): Promise<DeployInfo | n
       // Trace API not available
     }
 
-    return null;
+    // Factory deploy with no trace API: we can't name the deployer, but the
+    // creation block alone unlocks the launchpad-event fallback upstream.
+    return { deployBlock: creationBlock };
   } catch (err) {
-    logger.debug({ err }, "binary search creation failed");
+    logger.debug({ err }, "creation block search failed");
     return null;
   }
 }
@@ -236,6 +268,7 @@ async function fetchTraces(blockNumber: number, contractAddress: Address): Promi
         method: "trace_block",
         params: [`0x${blockNumber.toString(16)}`],
       }),
+      signal: AbortSignal.timeout(2_500),
     });
 
     const data = await response.json() as {

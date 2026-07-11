@@ -128,11 +128,14 @@ async function resolveArrowPadToken(
   deployBlock?: number
 ): Promise<LaunchpadInfo | null> {
   const fromBlock = getSearchStartBlock(launchpad, deployBlock);
+  // With a known deploy block, bound each event scan to ~540k blocks after
+  // deploy (curve lifecycles are short) instead of scanning to chain head.
+  const ahead = deployBlock ? 540_000n : undefined;
   const [createdLogs, launchedLogs, buyLogs, sellLogs] = await Promise.all([
-    getTokenLogs(launchpad.address, tokenCreatedEvent, tokenAddress, fromBlock),
-    getTokenLogs(launchpad.address, tokenLaunchedEvent, tokenAddress, fromBlock),
-    getTokenLogs(launchpad.address, buyTokensEvent, tokenAddress, fromBlock),
-    getTokenLogs(launchpad.address, sellTokensEvent, tokenAddress, fromBlock),
+    getTokenLogs(launchpad.address, tokenCreatedEvent, tokenAddress, fromBlock, false, ahead),
+    getTokenLogs(launchpad.address, tokenLaunchedEvent, tokenAddress, fromBlock, false, ahead),
+    getTokenLogs(launchpad.address, buyTokensEvent, tokenAddress, fromBlock, false, ahead),
+    getTokenLogs(launchpad.address, sellTokensEvent, tokenAddress, fromBlock, false, ahead),
   ]);
 
   if (createdLogs.length === 0 && launchedLogs.length === 0 && buyLogs.length === 0 && sellLogs.length === 0) {
@@ -170,7 +173,11 @@ async function resolveNoxaToken(
   deployBlock?: number
 ): Promise<LaunchpadInfo | null> {
   const fromBlock = getSearchStartBlock(launchpad, deployBlock);
-  const logs = await getTokenLogs(launchpad.address, noxaTokenLaunchedEvent, tokenAddress, fromBlock, true);
+  // NOXA's TokenLaunched fires at deploy — a small forward window is enough.
+  const logs = await getTokenLogs(
+    launchpad.address, noxaTokenLaunchedEvent, tokenAddress, fromBlock, true,
+    deployBlock ? 90_000n : undefined
+  );
   const launch = logs[0];
   if (!launch) return null;
 
@@ -200,11 +207,22 @@ async function getTokenLogs(
   event: object,
   tokenAddress: Address,
   fromBlock: bigint,
-  indexedToken = false
+  indexedToken = false,
+  maxBlocksAhead?: bigint
 ): Promise<any[]> {
   // Wide fromBlock→latest ranges exceed the RPC provider's per-call block-range
   // limit (Alchemy caps eth_getLogs at 10,000 blocks) — getLogsChunked splits
   // the query into safe windows. Retry once on top of that for transient blips.
+  // When the caller knows the deploy block, maxBlocksAhead bounds the scan to a
+  // forward window from deploy — launchpad events cluster around the token's
+  // curve lifetime, so scanning all the way to head is wasted roundtrips.
+  let toBlock: bigint | "latest" = "latest";
+  if (maxBlocksAhead !== undefined) {
+    const head = await cachedRpc.getBlockNumber();
+    const capped = fromBlock + maxBlocksAhead;
+    toBlock = capped < head ? capped : head;
+  }
+
   let logs: any[] = [];
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -214,7 +232,11 @@ async function getTokenLogs(
         event,
         args: indexedToken ? { token: tokenAddress } : undefined,
         fromBlock,
-        toBlock: "latest",
+        toBlock,
+        // Hard ceiling even without a known deploy block — an uncapped scan
+        // from the launchpad's start block to head is 400+ chunks and used to
+        // eat the entire meta-phase budget on every uncached lookup.
+        maxChunks: 60,
       });
       lastErr = undefined;
       break;
