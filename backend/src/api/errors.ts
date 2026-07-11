@@ -7,6 +7,7 @@ export type ApiErrorCode =
   | "FORBIDDEN"
   | "NONCE_EXPIRED"
   | "BAD_SIGNATURE"
+  | "CSRF_REQUIRED"
   | "NOT_FOUND"
   | "SCAN_FAILED"
   | "SCAN_OVERLOADED"

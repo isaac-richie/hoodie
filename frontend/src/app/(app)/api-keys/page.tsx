@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { ApiClientError } from "@/lib/api";
 import { useApiKeys, useCreateApiKey, useEnsureUser, useRevokeApiKey } from "@/lib/queries";
-import { useSessionStore } from "@/stores/session";
 
 function short(value: string) {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
@@ -19,9 +18,6 @@ export default function ApiKeysPage() {
   const userId = address?.toLowerCase();
   const [name, setName] = useState("Default key");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
-  const setApiKey = useSessionStore((state) => state.setApiKey);
-  const clearApiKey = useSessionStore((state) => state.clearApiKey);
-  const localApiKey = useSessionStore((state) => state.apiKey);
   const ensureUser = useEnsureUser();
   const ensureUserMutate = ensureUser.mutate;
   const keys = useApiKeys(userId);
@@ -41,7 +37,6 @@ export default function ApiKeysPage() {
       scopes: ["scan:read", "watchlist:write", "alerts:write"],
     });
     setCreatedKey(result.key);
-    setApiKey(result.key);
     setName("Default key");
   }
 
@@ -53,7 +48,7 @@ export default function ApiKeysPage() {
         </div>
         <h1 style={{ fontSize: 28, margin: "0 0 10px", color: "#E6FBEA" }}>Programmatic access</h1>
         <p style={{ margin: 0, color: "#7FA68A", lineHeight: "24px" }}>
-          Create, list, and revoke real DB-backed keys. New secrets are shown once and stored locally only if you keep them armed here.
+          Create, list, and revoke real DB-backed keys. New secrets are shown once and are never stored in browser localStorage.
         </p>
       </div>
 
@@ -97,14 +92,9 @@ export default function ApiKeysPage() {
                 <code style={{ color: "#E6FBEA", overflowWrap: "anywhere" }}>{createdKey}</code>
               </div>
             )}
-            <div style={{ marginTop: 14, color: localApiKey ? "#00C805" : "#496552", fontSize: 12 }}>
-              {localApiKey ? `local key armed: ${localApiKey.slice(0, 14)}...${localApiKey.slice(-4)}` : "no local key armed in this browser"}
+            <div style={{ marginTop: 14, color: "#496552", fontSize: 12 }}>
+              API secrets are one-time only. Copy the new key before leaving this page.
             </div>
-            {localApiKey && (
-              <button onClick={clearApiKey} style={{ marginTop: 12, background: "transparent", border: "1px solid #164A2A", color: "#FFB020", padding: "8px 12px", cursor: "pointer" }}>
-                clear local key
-              </button>
-            )}
           </div>
 
           <div style={{ ...panelStyle(), padding: 0, overflow: "hidden" }}>

@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAccount, useSignMessage, useSwitchChain } from "wagmi";
 import { ApiClientError, getWalletNonce, logoutSession, verifyWalletSignature } from "@/lib/api";
+import { useSession } from "@/lib/queries";
 import { robinhoodChain } from "@/lib/wagmi";
 import { useSessionStore } from "@/stores/session";
 
@@ -46,14 +48,16 @@ function PrivyWalletButtonInner({ size = "compact", showVerify = true, onConnect
   const { address, chainId, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain();
-  const verifiedWallet = useSessionStore((state) => state.walletAddress);
-  const verifiedAt = useSessionStore((state) => state.walletVerifiedAt);
   const setWalletVerified = useSessionStore((state) => state.setWalletVerified);
   const clearWalletSession = useSessionStore((state) => state.clearWalletSession);
+  const queryClient = useQueryClient();
   const isFull = size === "full";
   const displayAddress = address || user?.wallet?.address;
   const isWrongNetwork = Boolean(isConnected && chainId && chainId !== robinhoodChain.id);
-  const isVerified = Boolean(displayAddress && verifiedWallet === displayAddress.toLowerCase());
+  const session = useSession(Boolean(displayAddress));
+  const sessionWallet = session.data?.session.walletAddress?.toLowerCase();
+  const isVerified = Boolean(displayAddress && sessionWallet === displayAddress.toLowerCase());
+  const verifiedAt = session.data?.session.iat ? session.data.session.iat * 1000 : undefined;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -65,6 +69,10 @@ function PrivyWalletButtonInner({ size = "compact", showVerify = true, onConnect
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (session.isError) clearWalletSession();
+  }, [clearWalletSession, session.isError]);
+
   async function verifyWallet(address: string) {
     setError(null);
     setIsVerifying(true);
@@ -73,6 +81,7 @@ function PrivyWalletButtonInner({ size = "compact", showVerify = true, onConnect
       const signature = await signMessageAsync({ message: nonce.message });
       const verified = await verifyWalletSignature({ walletAddress: address, signature });
       setWalletVerified(address, verified.user.id, verified.user.tier ?? "free");
+      await queryClient.invalidateQueries({ queryKey: ["session"] });
       onConnectedAction?.();
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : "wallet signature failed";
@@ -90,7 +99,12 @@ function PrivyWalletButtonInner({ size = "compact", showVerify = true, onConnect
 
   function disconnect() {
     setMenuOpen(false);
-    logoutSession().finally(() => logout()).then(clearWalletSession);
+    logoutSession()
+      .finally(() => logout())
+      .finally(() => {
+        clearWalletSession();
+        queryClient.invalidateQueries({ queryKey: ["session"] });
+      });
   }
 
   if (!ready) {

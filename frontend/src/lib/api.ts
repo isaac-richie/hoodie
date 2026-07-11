@@ -221,12 +221,15 @@ export async function apiGet<T>(path: string): Promise<T> {
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const needsCsrfHeader = method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: "include",
     headers: {
       Accept: "application/json",
       ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(needsCsrfHeader ? { "X-Hood-CSRF": "1" } : {}),
       ...(init.headers || {}),
     },
   });

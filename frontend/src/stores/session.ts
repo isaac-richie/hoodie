@@ -4,13 +4,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface SessionState {
-  apiKey?: string;
   walletAddress?: string;
   walletVerifiedAt?: number;
   userId?: string;
   tier?: string;
-  setApiKey: (apiKey: string) => void;
-  clearApiKey: () => void;
   setWalletVerified: (walletAddress: string, userId?: string, tier?: string) => void;
   clearWalletSession: () => void;
 }
@@ -18,13 +15,10 @@ interface SessionState {
 export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
-      apiKey: undefined,
       walletAddress: undefined,
       walletVerifiedAt: undefined,
       userId: undefined,
       tier: undefined,
-      setApiKey: (apiKey) => set({ apiKey }),
-      clearApiKey: () => set({ apiKey: undefined }),
       setWalletVerified: (walletAddress, userId, tier) =>
         set({
           walletAddress: walletAddress.toLowerCase(),
@@ -35,6 +29,16 @@ export const useSessionStore = create<SessionState>()(
       clearWalletSession: () =>
         set({ walletAddress: undefined, walletVerifiedAt: undefined, userId: undefined, tier: undefined }),
     }),
-    { name: "hood-session" }
+    {
+      name: "hood-session",
+      // Never persist API secrets. This store only keeps non-secret wallet UI
+      // hints; the backend session cookie remains the source of truth.
+      partialize: ({ walletAddress, walletVerifiedAt, userId, tier }) => ({
+        walletAddress,
+        walletVerifiedAt,
+        userId,
+        tier,
+      }),
+    }
   )
 );

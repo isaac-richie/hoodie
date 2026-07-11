@@ -96,10 +96,11 @@ export function useChainStats() {
   });
 }
 
-export function useSession() {
+export function useSession(enabled = true) {
   return useQuery({
     queryKey: ["session"],
     queryFn: getSession,
+    enabled,
     staleTime: 60_000,
     retry: false,
   });

@@ -5,7 +5,6 @@ import { HoodWalletButton } from "@/components/wallet/HoodWalletButton";
 import { useSession } from "@/lib/queries";
 import { useScanHistoryStore } from "@/stores/scan-history";
 import { useQuiverStore } from "@/stores/quiver";
-import { useSessionStore } from "@/stores/session";
 
 export default function AccountPage() {
   const { address, isConnected, chain } = useAccount();
@@ -13,14 +12,9 @@ export default function AccountPage() {
   const scanHistory = useScanHistoryStore((state) => state.items);
   const clearHistory = useScanHistoryStore((state) => state.clear);
   const quiver = useQuiverStore((state) => state.addresses);
-  const apiKey = useSessionStore((state) => state.apiKey);
-  const verifiedWallet = useSessionStore((state) => state.walletAddress);
-  const walletVerifiedAt = useSessionStore((state) => state.walletVerifiedAt);
-  const localTier = useSessionStore((state) => state.tier);
-  const clearApiKey = useSessionStore((state) => state.clearApiKey);
   const backendUser = session.data?.user;
   const backendSession = session.data?.session;
-  const tier = backendSession?.tier ?? backendUser?.tier ?? localTier ?? "guest";
+  const tier = backendSession?.tier ?? backendUser?.tier ?? "guest";
 
   return (
     <section style={{ maxWidth: 1040, margin: "0 auto", padding: "28px 16px", display: "grid", gap: 1 }}>
@@ -72,16 +66,11 @@ export default function AccountPage() {
           </div>
           <div style={{ display: "grid", gap: 10, fontSize: 13 }}>
             <InfoLine label="network" value={chain?.name || "not selected"} />
-            <InfoLine label="wallet proof" value={walletVerifiedAt ? new Date(walletVerifiedAt).toLocaleString() : "not signed"} />
-            <InfoLine label="verified wallet" value={verifiedWallet ?? "none"} />
-            <InfoLine label="stored api key" value={apiKey ? "present" : "none"} />
+            <InfoLine label="wallet proof" value={backendSession?.iat ? new Date(backendSession.iat * 1000).toLocaleString() : "not signed"} />
+            <InfoLine label="verified wallet" value={backendSession?.walletAddress ?? "none"} />
+            <InfoLine label="stored api key" value="not stored" />
             <InfoLine label="quiver" value={String(quiver.length)} />
           </div>
-          {apiKey && (
-            <button onClick={clearApiKey} style={{ marginTop: 16, background: "transparent", border: "1px solid #164A2A", color: "#FFB020", padding: "8px 12px", cursor: "pointer" }}>
-              clear local api key
-            </button>
-          )}
         </div>
       </div>
 

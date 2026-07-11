@@ -23,6 +23,7 @@ import { logger } from "../utils/logger.js";
 import { redis } from "../config/redis.js";
 import { db } from "../db/client.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { csrfMiddleware } from "./middleware/csrf.js";
 import { scanRoutes } from "./routes/scan.js";
 import { tokenRoutes } from "./routes/token.js";
 import { statsRoutes } from "./routes/stats.js";
@@ -71,8 +72,9 @@ export async function createServer() {
     }),
   });
 
-  // Auth middleware (skips /health, skips dev without REQUIRE_AUTH)
+  // Auth middleware (skips liveness + wallet-login bootstrap routes).
   app.addHook("onRequest", authMiddleware);
+  app.addHook("onRequest", csrfMiddleware);
 
   // Shallow liveness — is the process up and serving?
   app.get("/health", async () => ({

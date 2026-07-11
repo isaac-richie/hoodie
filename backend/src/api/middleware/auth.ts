@@ -5,9 +5,9 @@
  * To create a key: call createApiKey({ userId, tier }) — returns "ht_live_...".
  *
  * Behavior:
- *   - /health is always unauthenticated (for load balancer probes)
- *   - In development: auth is skipped unless REQUIRE_AUTH=true in .env
- *   - In production: all routes require a valid x-api-key header
+ *   - /health, /ready, and wallet-auth bootstrap routes are public
+ *   - Product routes require either a signed wallet session or x-api-key
+ *   - Development can opt out with REQUIRE_AUTH=false, but production cannot
  *
  * The middleware attaches userId, tier, apiKeyId, and scopes to the request
  * object for downstream use (e.g., tier-based rate limiting, audit logging).
@@ -23,16 +23,20 @@ import { sendApiError } from "../errors.js";
 import { readSession } from "../session.js";
 
 const API_KEY_HEADER = "x-api-key";
-const LEGACY_API_KEY_PREFIX = "apikey:";
 const API_KEY_CACHE_PREFIX = "apikey-hash:";
+const PUBLIC_ROUTES = new Set([
+  "/health",
+  "/ready",
+  "/v1/auth/wallet/nonce",
+  "/v1/auth/wallet/verify",
+  "/v1/auth/session",
+  "/v1/auth/logout",
+]);
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
-  // Skip auth for health check and wallet login bootstrap routes.
-  if (
-    request.url === "/health" ||
-    request.url === "/v1/auth/wallet/nonce" ||
-    request.url === "/v1/auth/wallet/verify"
-  ) return;
+  // Skip auth for health checks and wallet login/session bootstrap routes. The
+  // route handlers still return 401 where appropriate (for example no session).
+  if (PUBLIC_ROUTES.has(request.url.split("?")[0])) return;
 
   const session = readSession(request);
   if (session) {
@@ -44,14 +48,13 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     return;
   }
 
-  // Skip auth in development if no keys are configured
+  // Local-only escape hatch. The checked-in/test env now enables auth so the
+  // product behaves like production by default.
   if (env.nodeEnv === "development" && !env.requireAuth) return;
 
   const apiKey = request.headers[API_KEY_HEADER] as string | undefined;
 
   if (!apiKey) {
-    if (request.url === "/v1/auth/session" || request.url === "/v1/auth/logout") return;
-
     return sendApiError(reply, 401, "UNAUTHORIZED", "missing api key", {
       header: API_KEY_HEADER,
     });
@@ -80,11 +83,6 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
         .where(eq(apiKeys.id, record.id))
         .catch(() => undefined);
     }
-  }
-
-  // Legacy Redis keys are supported so old local keys do not break immediately.
-  if (!keyData) {
-    keyData = await redis.get(`${LEGACY_API_KEY_PREFIX}${apiKey}`);
   }
 
   if (!keyData) {

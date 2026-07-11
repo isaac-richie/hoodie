@@ -39,7 +39,7 @@ const envSchema = z.object({
   ROLE: z.enum(["all", "api", "worker"]).optional().default("all"),
   // Enable Fastify per-request access logging.
   REQUEST_LOGGING: boolFromEnv,
-  REQUIRE_AUTH: boolFromEnv,
+  REQUIRE_AUTH: z.string().optional().default("true").transform((value) => value === "true"),
   SESSION_SECRET: z.string().optional().default("dev-session-secret-change-me"),
   // Comma-separated allowlist of origins permitted to send credentialed requests.
   // Empty in dev = reflect localhost; required (non-empty) in production.
@@ -98,6 +98,9 @@ if (values.NODE_ENV === "production") {
     problems.push(
       "CORS_ORIGINS must list the exact allowed frontend origin(s) in production (an open CORS policy with credentials lets any website act as a logged-in user)"
     );
+  }
+  if (!values.REQUIRE_AUTH) {
+    problems.push("REQUIRE_AUTH must be true in production so product APIs require wallet/API authentication");
   }
   if (problems.length > 0) {
     throw new Error(`Refusing to start in production:\n- ${problems.join("\n- ")}`);
