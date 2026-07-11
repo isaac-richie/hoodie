@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
+import { createPortal } from "react-dom";
 import { useAccount, useSignMessage, useSwitchChain } from "wagmi";
 import { ApiClientError, getWalletNonce, logoutSession, verifyWalletSignature } from "@/lib/api";
 import { useSession } from "@/lib/queries";
@@ -53,6 +54,7 @@ function PrivyWalletButtonInner({ size = "compact", menuPlacement = "bottom", sh
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuPanelRef = useRef<HTMLDivElement>(null);
   const { ready, authenticated, user, login, logout, linkWallet } = usePrivy();
   const { address, chainId, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
@@ -70,7 +72,12 @@ function PrivyWalletButtonInner({ size = "compact", menuPlacement = "bottom", sh
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        !menuPanelRef.current?.contains(target)
+      ) {
         setMenuOpen(false);
       }
     }
@@ -165,6 +172,64 @@ function PrivyWalletButtonInner({ size = "compact", menuPlacement = "bottom", sh
     );
   }
 
+  const dropdown = menuOpen ? (
+    <div
+      ref={menuPanelRef}
+      style={{
+        position: "absolute",
+        ...(menuPlacement === "sidebar"
+          ? {
+              position: "fixed",
+              left: 12,
+              bottom: 76,
+              width: "min(260px, calc(100vw - 24px))",
+              maxHeight: "calc(100vh - 96px)",
+              overflowY: "auto",
+              boxSizing: "border-box",
+            }
+          : menuPlacement === "top"
+            ? { bottom: "calc(100% + 6px)" }
+            : { top: "calc(100% + 6px)" }),
+        ...(menuPlacement === "sidebar" ? {} : { right: 0 }),
+        minWidth: 200,
+        maxWidth: 300,
+        background: "#06140B",
+        border: "1px solid #164A2A",
+        borderRadius: 6,
+        padding: "6px 0",
+        zIndex: 9999,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+      }}
+    >
+      <div style={{ padding: "8px 14px", fontSize: 11, color: "#496552", borderBottom: "1px solid #164A2A", overflowWrap: "anywhere" }}>
+        {displayAddress}
+      </div>
+      <button onClick={copyAddress} style={menuItemStyle}>
+        <CopyIcon />
+        {copied ? "Copied!" : "Copy address"}
+      </button>
+      {showVerify && !isVerified && (
+        <button
+          onClick={() => { setMenuOpen(false); verifyWallet(displayAddress); }}
+          disabled={isVerifying}
+          style={menuItemStyle}
+        >
+          <ShieldIcon />
+          {isVerifying ? "Signing..." : "Verify wallet"}
+        </button>
+      )}
+      {showVerify && isVerified && verifiedAt && (
+        <div style={{ padding: "6px 14px", fontSize: 10, color: "#7FA68A", borderBottom: "1px solid #164A2A" }}>
+          Verified {new Date(verifiedAt).toLocaleDateString()}
+        </div>
+      )}
+      <button onClick={disconnect} style={{ ...menuItemStyle, color: "#FF3B30" }}>
+        <DisconnectIcon />
+        Disconnect
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div ref={menuRef} style={{ position: "relative", display: "grid", gap: 7, width: isFull ? "100%" : "auto" }}>
       <button
@@ -178,61 +243,9 @@ function PrivyWalletButtonInner({ size = "compact", menuPlacement = "bottom", sh
         <ChevronIcon open={menuOpen} />
       </button>
 
-      {menuOpen && (
-        <div
-          style={{
-            position: "absolute",
-            ...(menuPlacement === "sidebar"
-              ? {
-                  position: "fixed",
-                  left: 12,
-                  bottom: 76,
-                  width: "min(260px, calc(100vw - 24px))",
-                  maxHeight: "calc(100vh - 96px)",
-                  overflowY: "auto",
-                }
-              : menuPlacement === "top"
-                ? { bottom: "calc(100% + 6px)" }
-                : { top: "calc(100% + 6px)" }),
-            ...(menuPlacement === "sidebar" ? {} : { right: 0 }),
-            minWidth: 200,
-            maxWidth: 300,
-            background: "#06140B",
-            border: "1px solid #164A2A",
-            borderRadius: 6,
-            padding: "6px 0",
-            zIndex: 1000,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-          }}
-        >
-          <div style={{ padding: "8px 14px", fontSize: 11, color: "#496552", borderBottom: "1px solid #164A2A", overflowWrap: "anywhere" }}>
-            {displayAddress}
-          </div>
-          <button onClick={copyAddress} style={menuItemStyle}>
-            <CopyIcon />
-            {copied ? "Copied!" : "Copy address"}
-          </button>
-          {showVerify && !isVerified && (
-            <button
-              onClick={() => { setMenuOpen(false); verifyWallet(displayAddress); }}
-              disabled={isVerifying}
-              style={menuItemStyle}
-            >
-              <ShieldIcon />
-              {isVerifying ? "Signing..." : "Verify wallet"}
-            </button>
-          )}
-          {showVerify && isVerified && verifiedAt && (
-            <div style={{ padding: "6px 14px", fontSize: 10, color: "#7FA68A", borderBottom: "1px solid #164A2A" }}>
-              Verified {new Date(verifiedAt).toLocaleDateString()}
-            </div>
-          )}
-          <button onClick={disconnect} style={{ ...menuItemStyle, color: "#FF3B30" }}>
-            <DisconnectIcon />
-            Disconnect
-          </button>
-        </div>
-      )}
+      {menuPlacement === "sidebar" && dropdown && typeof document !== "undefined"
+        ? createPortal(dropdown, document.body)
+        : dropdown}
 
       {error && <div style={{ color: "#FFB020", fontSize: 11, lineHeight: "15px" }}>{error}</div>}
     </div>
