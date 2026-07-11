@@ -19,6 +19,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   //   /scan/*   — the inline "← Back / scan another address" bar
   //   /hideout  — the "run a scan" hero input
   const hideCommandBar = pathname?.startsWith("/scan/") || pathname === "/hideout";
+  const goHome = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    window.location.assign("/");
+  };
 
   return (
     <WalletGate>
@@ -36,7 +40,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
             <Link
               href="/"
-              style={{ display: "inline-flex", alignItems: "baseline", gap: 7, color: "inherit", textDecoration: "none" }}
+              onClick={goHome}
+              aria-label="Go to Hood Terminal home page"
+              style={{ display: "inline-flex", alignItems: "baseline", gap: 7, color: "inherit", textDecoration: "none", cursor: "pointer" }}
             >
               <span style={{ fontFamily: "var(--font-unifraktur), serif", fontSize: 18, color: "#E6FBEA" }}>Hood</span>
               <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.13em", color: "#00C805" }}>TERMINAL</span>

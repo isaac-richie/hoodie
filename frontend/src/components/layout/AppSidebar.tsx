@@ -76,6 +76,11 @@ export function AppSidebar() {
   }, []);
 
   const closeSidebar = () => setSidebarOpen(false);
+  const goHome = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    closeSidebar();
+    window.location.assign("/");
+  };
 
   return (
     <>
@@ -96,7 +101,8 @@ export function AppSidebar() {
       >
         <Link
           href="/"
-          onClick={closeSidebar}
+          onClick={goHome}
+          aria-label="Go to Hood Terminal home page"
           style={{
             padding: "16px 18px",
             borderBottom: "1px solid var(--glass-border)",
@@ -105,6 +111,7 @@ export function AppSidebar() {
             gap: 7,
             color: "inherit",
             textDecoration: "none",
+            cursor: "pointer",
           }}
         >
           <span
