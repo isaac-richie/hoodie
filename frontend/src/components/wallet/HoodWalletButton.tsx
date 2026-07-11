@@ -10,9 +10,11 @@ import { robinhoodChain } from "@/lib/wagmi";
 import { useSessionStore } from "@/stores/session";
 
 type ButtonSize = "compact" | "full";
+type MenuPlacement = "bottom" | "top";
 
 interface HoodWalletButtonProps {
   size?: ButtonSize;
+  menuPlacement?: MenuPlacement;
   showVerify?: boolean;
   onConnectedAction?: () => void;
 }
@@ -21,7 +23,7 @@ function short(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-export function HoodWalletButton({ size = "compact", showVerify = true, onConnectedAction }: HoodWalletButtonProps) {
+export function HoodWalletButton({ size = "compact", menuPlacement = "bottom", showVerify = true, onConnectedAction }: HoodWalletButtonProps) {
   if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
     const isFull = size === "full";
     return (
@@ -35,10 +37,17 @@ export function HoodWalletButton({ size = "compact", showVerify = true, onConnec
     );
   }
 
-  return <PrivyWalletButtonInner size={size} showVerify={showVerify} onConnectedAction={onConnectedAction} />;
+  return (
+    <PrivyWalletButtonInner
+      size={size}
+      menuPlacement={menuPlacement}
+      showVerify={showVerify}
+      onConnectedAction={onConnectedAction}
+    />
+  );
 }
 
-function PrivyWalletButtonInner({ size = "compact", showVerify = true, onConnectedAction }: HoodWalletButtonProps) {
+function PrivyWalletButtonInner({ size = "compact", menuPlacement = "bottom", showVerify = true, onConnectedAction }: HoodWalletButtonProps) {
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -173,18 +182,19 @@ function PrivyWalletButtonInner({ size = "compact", showVerify = true, onConnect
         <div
           style={{
             position: "absolute",
-            top: "calc(100% + 6px)",
+            ...(menuPlacement === "top" ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
             right: 0,
             minWidth: 200,
+            maxWidth: 300,
             background: "#06140B",
             border: "1px solid #164A2A",
             borderRadius: 6,
             padding: "6px 0",
-            zIndex: 100,
+            zIndex: 1000,
             boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
           }}
         >
-          <div style={{ padding: "8px 14px", fontSize: 11, color: "#496552", borderBottom: "1px solid #164A2A" }}>
+          <div style={{ padding: "8px 14px", fontSize: 11, color: "#496552", borderBottom: "1px solid #164A2A", overflowWrap: "anywhere" }}>
             {displayAddress}
           </div>
           <button onClick={copyAddress} style={menuItemStyle}>
