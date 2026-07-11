@@ -33,6 +33,17 @@ const PUBLIC_ROUTES = new Set([
   "/v1/auth/logout",
 ]);
 
+// Scan reads are open to guests even when REQUIRE_AUTH is on: the guest tier
+// exists precisely for unauthenticated users (metered per-IP by product-rules
+// quotas). Without this, production — where REQUIRE_AUTH is mandatory — would
+// 401 every visitor before they could run a single scan. Everything else
+// (alerts, API keys, watchlist) still requires a session or API key.
+const GUEST_ALLOWED_PREFIXES = ["/v1/scan/", "/v1/score/", "/v1/analyze", "/v1/stats"];
+
+function isGuestAllowed(path: string): boolean {
+  return GUEST_ALLOWED_PREFIXES.some((prefix) => path === prefix.replace(/\/$/, "") || path.startsWith(prefix));
+}
+
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
   // Skip auth for health checks and wallet login/session bootstrap routes. The
   // route handlers still return 401 where appropriate (for example no session).
@@ -55,6 +66,13 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
   const apiKey = request.headers[API_KEY_HEADER] as string | undefined;
 
   if (!apiKey) {
+    // No session, no key — allow through as a metered guest for scan reads only.
+    if (isGuestAllowed(request.url.split("?")[0])) {
+      (request as any).tier = "guest";
+      (request as any).scopes = ["scan:read"];
+      (request as any).authType = "guest";
+      return;
+    }
     return sendApiError(reply, 401, "UNAUTHORIZED", "missing api key", {
       header: API_KEY_HEADER,
     });

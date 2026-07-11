@@ -176,20 +176,19 @@ function PrivyWalletButtonInner({ size = "compact", menuPlacement = "bottom", sh
     <div
       ref={menuPanelRef}
       style={{
-        position: "absolute",
         ...(menuPlacement === "sidebar"
           ? {
-              position: "fixed",
+              position: "fixed" as const,
               left: 12,
               bottom: 76,
               width: "min(260px, calc(100vw - 24px))",
               maxHeight: "calc(100vh - 96px)",
-              overflowY: "auto",
-              boxSizing: "border-box",
+              overflowY: "auto" as const,
+              boxSizing: "border-box" as const,
             }
           : menuPlacement === "top"
-            ? { bottom: "calc(100% + 6px)" }
-            : { top: "calc(100% + 6px)" }),
+            ? { position: "absolute" as const, bottom: "calc(100% + 6px)" }
+            : { position: "absolute" as const, top: "calc(100% + 6px)" }),
         ...(menuPlacement === "sidebar" ? {} : { right: 0 }),
         minWidth: 200,
         maxWidth: 300,

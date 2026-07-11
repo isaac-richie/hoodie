@@ -48,11 +48,19 @@ export async function walletAuthRoutes(app: FastifyInstance) {
     }
 
     const message = buildWalletLoginMessage(walletAddress, nonce);
-    const valid = await verifyMessage({
-      address: walletAddress as `0x${string}`,
-      message,
-      signature: body.data.signature as `0x${string}`,
-    });
+    // verifyMessage THROWS on structurally malformed signatures (bad length,
+    // bad v value) rather than returning false — without this catch a garbage
+    // signature produced a 500 that leaked the raw viem error to clients.
+    let valid = false;
+    try {
+      valid = await verifyMessage({
+        address: walletAddress as `0x${string}`,
+        message,
+        signature: body.data.signature as `0x${string}`,
+      });
+    } catch {
+      valid = false;
+    }
 
     if (!valid) {
       return sendApiError(reply, 401, "BAD_SIGNATURE", "wallet signature did not match");

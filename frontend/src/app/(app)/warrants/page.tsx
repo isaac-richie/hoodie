@@ -50,14 +50,14 @@ function AlertReport({ payload }: { payload: Record<string, unknown> | null }) {
   const summary = stringValue(report?.summary ?? payload?.summary);
   const label = stringValue(moduleReport?.label);
   const detail = stringValue(moduleReport?.detail);
-  const hpFields = [
+  const hpFields: [string, unknown][] = ([
     ["can sell", evidence?.canSell],
     ["buy tax", evidence?.buyTax],
     ["sell tax", evidence?.sellTax],
     ["total tax", evidence?.totalTax],
     ["method", evidence?.method],
     ["reason", evidence?.reason],
-  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+  ] as [string, unknown][]).filter(([, value]) => value !== undefined && value !== null && value !== "");
 
   return (
     <div style={{ marginTop: 8, border: "1px solid #164A2A", background: "#06140B", padding: 10 }}>
