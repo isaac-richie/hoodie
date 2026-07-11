@@ -21,20 +21,156 @@ const CATEGORY_TAB: Record<string, (typeof MODULE_TABS)[number]> = {
   meta: "Meta",
 };
 
-const STATUS_COLOR: Record<ModuleStatus, string> = {
-  pass: "#00C805",
-  warn: "#FFB020",
-  fail: "#FF3B30",
-  timeout: "#7FA68A",
-  error: "#FF3B30",
-};
 
 function formatAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
 function formatBand(band: ScanResult["band"]) {
   return band.replace("_", " ");
+}
+
+// ── Status affordance ────────────────────────────────────────────────
+const STATUS_META: Record<ModuleStatus, { label: string; fg: string; bg: string; accent: string }> = {
+  pass: { label: "Pass", fg: "#00C805", bg: "rgba(0,200,5,0.12)", accent: "#00C805" },
+  warn: { label: "Watch", fg: "#FFB020", bg: "rgba(255,176,32,0.12)", accent: "#FFB020" },
+  fail: { label: "Flag", fg: "#FF3B30", bg: "rgba(255,59,48,0.14)", accent: "#FF3B30" },
+  timeout: { label: "Skipped", fg: "#7FA68A", bg: "rgba(127,166,138,0.12)", accent: "#7FA68A" },
+  error: { label: "Error", fg: "#FF3B30", bg: "rgba(255,59,48,0.14)", accent: "#FF3B30" },
+};
+
+// ── Evidence humanisation ────────────────────────────────────────────
+// Turn raw engine field names + values into something a person reads, not a
+// JSON dump. Unknown keys fall back to a de-camelCased label.
+const EVIDENCE_LABELS: Record<string, string> = {
+  canSell: "Can sell", buyTax: "Buy tax", sellTax: "Sell tax", totalTax: "Total tax",
+  gasAnomaly: "Gas anomaly", sellGas: "Sell gas units",
+  pool: "Pool", dex: "DEX", burned: "LP burned", locked: "LP locked",
+  lockDays: "Lock length", unlockDate: "Unlocks", locker: "Locker", owner: "Owner",
+  liquidity: "Liquidity", burnedPct: "LP burned", lockedPct: "LP locked",
+  renounced: "Ownership renounced",
+  totalLaunches: "Tokens launched", confirmedRugs: "Confirmed rugs",
+  survivalRate: "30-day survival", medianLifeHours: "Median token life",
+  mintReachable: "Mint reachable", mintByOwner: "Owner can mint",
+  setTaxCallable: "Tax is mutable",
+  holderCount: "Holders", top1Pct: "Top holder", top10Pct: "Top 10 holders",
+  top10SybilAdjusted: "Top 10 (sybil-adjusted)", freshWalletPct: "Fresh wallets",
+  commonFunders: "Shared funders",
+  bundlePct: "Bundled supply", walletCount: "Bundled wallets", funderCount: "Funder wallets",
+  funders: "Funder wallets", wallets: "Wallets",
+  count: "Snipers", soldAll: "Already exited", address: "Wallet",
+  hasBlacklist: "Blacklist function", hasPause: "Pause function",
+  templatesChecked: "Templates checked",
+};
+// Internal plumbing that shouldn't reach a person reading a report.
+const EVIDENCE_HIDE = new Set([
+  "fundingTraceAvailable", "poolCount", "sybilBands", "method", "bundleBlock",
+  "kind", "isSerialRug", "pastTokens",
+]);
+const EVIDENCE_PCT = new Set([
+  "buyTax", "sellTax", "totalTax", "survivalRate", "top1Pct", "top10Pct",
+  "top10SybilAdjusted", "freshWalletPct", "bundlePct", "burnedPct", "lockedPct",
+]);
+
+function humanizeKey(key: string): string {
+  if (EVIDENCE_LABELS[key]) return EVIDENCE_LABELS[key];
+  const spaced = key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function humanizeModuleName(name: string): string {
+  const spaced = name.replace(/[_-]+/g, " ");
+  return spaced.replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\bLp\b/, "LP").replace(/\bV3\b/i, "V3");
+}
+
+function looksLikeAddress(value: unknown): value is string {
+  return typeof value === "string" && /^0x[a-fA-F0-9]{40}$/.test(value);
+}
+
+function AddressChip({ value }: { value: string }) {
+  return (
+    <span
+      title={value}
+      style={{
+        fontFamily: "var(--font-mono, monospace)",
+        fontSize: 11,
+        color: "#B7D9C2",
+        background: "#0A1F12",
+        border: "1px solid #164A2A",
+        borderRadius: 3,
+        padding: "1px 6px",
+      }}
+    >
+      {formatAddress(value)}
+    </span>
+  );
+}
+
+function AddressCopy({ address }: { address: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard?.writeText(address).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        });
+      }}
+      title="Copy address"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        alignSelf: "flex-start",
+        background: "#0A1F12",
+        border: "1px solid #164A2A",
+        borderRadius: 4,
+        padding: "5px 9px",
+        cursor: "pointer",
+        fontFamily: "var(--font-mono, monospace)",
+        fontSize: 11,
+        color: "#8FB39D",
+      }}
+    >
+      {formatAddress(address)}
+      <span style={{ color: copied ? "#00C805" : "#3F5A49", fontSize: 10 }}>{copied ? "copied" : "copy"}</span>
+    </button>
+  );
+}
+
+function EvidenceValue({ fieldKey, value }: { fieldKey: string; value: unknown }) {
+  if (typeof value === "boolean") {
+    return (
+      <span style={{ color: value ? "#E6FBEA" : "#7FA68A", fontWeight: 600 }}>
+        {value ? "Yes" : "No"}
+      </span>
+    );
+  }
+  if (EVIDENCE_PCT.has(fieldKey) && typeof value === "number") {
+    return <span style={{ color: "#E6FBEA" }}>{value}%</span>;
+  }
+  if (looksLikeAddress(value)) return <AddressChip value={value} />;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span style={{ color: "#496552" }}>none</span>;
+    if (value.every(looksLikeAddress)) {
+      return (
+        <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          {value.slice(0, 3).map((addr) => (
+            <AddressChip key={addr as string} value={addr as string} />
+          ))}
+          {value.length > 3 && <span style={{ color: "#496552", fontSize: 11 }}>+{value.length - 3} more</span>}
+        </span>
+      );
+    }
+    return <span style={{ color: "#E6FBEA" }}>{value.length} items</span>;
+  }
+  if (typeof value === "number") {
+    return <span style={{ color: "#E6FBEA" }}>{value.toLocaleString()}</span>;
+  }
+  if (value === null || value === undefined || value === "") {
+    return <span style={{ color: "#496552" }}>—</span>;
+  }
+  return <span style={{ color: "#E6FBEA", overflowWrap: "anywhere" }}>{String(value)}</span>;
 }
 
 function moduleCategory(module: ModuleResult) {
@@ -91,23 +227,36 @@ function EmptyState({ title, message }: { title: string; message: string }) {
 }
 
 function EvidenceBlock({ evidence }: { evidence: Record<string, unknown> }) {
-  const entries = Object.entries(evidence || {});
+  const entries = Object.entries(evidence || {}).filter(
+    ([key, value]) =>
+      !EVIDENCE_HIDE.has(key) &&
+      value !== null &&
+      value !== undefined &&
+      !(typeof value === "object" && !Array.isArray(value))
+  );
 
-  if (entries.length === 0) {
-    return <div style={{ color: "#496552", fontSize: 12 }}>no structured evidence returned</div>;
-  }
+  if (entries.length === 0) return null;
 
   return (
-    <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-      {entries.slice(0, 6).map(([key, value]) => (
-        <div key={key} style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 12, fontSize: 12 }}>
-          <span style={{ color: "#496552" }}>{key}</span>
-          <span style={{ color: "#E6FBEA", overflowWrap: "anywhere" }}>
-            {typeof value === "object" ? JSON.stringify(value) : String(value)}
-          </span>
+    <dl
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+        gap: "8px 24px",
+        margin: "14px 0 0",
+        paddingTop: 12,
+        borderTop: "1px solid #11331F",
+      }}
+    >
+      {entries.slice(0, 8).map(([key, value]) => (
+        <div key={key} style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, fontSize: 12 }}>
+          <dt style={{ color: "#5E7D6A", whiteSpace: "nowrap" }}>{humanizeKey(key)}</dt>
+          <dd style={{ margin: 0, textAlign: "right", minWidth: 0 }}>
+            <EvidenceValue fieldKey={key} value={value} />
+          </dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }
 
@@ -167,128 +316,180 @@ function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: ()
     return [...filtered].sort(sortModules);
   }, [activeTab, result.moduleResults]);
 
+  const durationLabel = result.durationMs >= 1000
+    ? `${(result.durationMs / 1000).toFixed(1)}s`
+    : `${result.durationMs}ms`;
+
   return (
-    <div style={{ display: "grid", gap: 1 }}>
+    <div style={{ display: "grid", gap: 10 }}>
       <NewScanBar />
-      <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#06140B", border: "1px solid #164A2A", padding: "8px 14px", fontSize: 11, flexWrap: "wrap" }}>
-        <span style={{ color: "#496552" }}>scan.log</span>
-        <span style={{ color: "#7FA68A" }}>
-          {result.modulesRan}/{result.modulesTotal} modules · {result.durationMs}ms · confidence {result.confidence}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#06140B", border: "1px solid #164A2A", padding: "8px 14px", fontSize: 11, flexWrap: "wrap" }}>
+        <span style={{ color: "#5E7D6A" }}>
+          {result.modulesRan}/{result.modulesTotal} checks · {durationLabel} · {result.confidence} confidence
         </span>
         <button
           onClick={onRescan}
-          style={{ marginLeft: "auto", background: "transparent", border: "1px solid #164A2A", color: "#00C805", fontSize: 11, padding: "5px 10px", cursor: "pointer" }}
+          style={{ marginLeft: "auto", background: "transparent", border: "1px solid #164A2A", color: "#00C805", fontSize: 11, padding: "5px 12px", cursor: "pointer", borderRadius: 3 }}
         >
-          run again
+          Rescan
         </button>
         <button
           onClick={() => addToQuiver(result.tokenAddress)}
-          style={{ background: "transparent", border: "1px solid #164A2A", color: isInQuiver ? "#FFB020" : "#E6FBEA", fontSize: 11, padding: "5px 10px", cursor: "pointer" }}
+          style={{ background: "transparent", border: "1px solid #164A2A", color: isInQuiver ? "#FFB020" : "#E6FBEA", fontSize: 11, padding: "5px 12px", cursor: "pointer", borderRadius: 3 }}
         >
-          {isInQuiver ? "in quiver" : "add quiver"}
+          {isInQuiver ? "✓ In quiver" : "+ Add to quiver"}
         </button>
       </div>
 
       {timedOut > 0 && (
         <div style={{ background: "#3a2a08", border: "1px solid #FFB020", padding: "10px 14px", fontSize: 12, color: "#FFB020" }}>
-          Partial analysis. {timedOut} module{timedOut === 1 ? "" : "s"} timed out, so the score can shift after a clean retry.
+          Partial analysis. {timedOut} check{timedOut === 1 ? "" : "s"} timed out, so the score can shift after a clean rescan.
         </div>
       )}
 
       {gated && (
         <div style={{ background: "#06140B", border: "1px solid #D4A937", padding: "10px 14px", fontSize: 12, color: "#D4A937" }}>
-          Module-gated result. Advanced launch/funding modules are hidden for this session tier; use a Pro or Team key/session for the full evidence set.
+          Some advanced launch/funding checks are hidden on this tier. Use a Pro or Team key for the full evidence set.
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 360px) 1fr", gap: 1 }}>
-        <Panel style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div style={{ minWidth: 96 }}>
-            <div style={{ fontSize: 56, fontWeight: 700, color: band.bg, lineHeight: 1 }}>{result.score}</div>
-            <div style={{ height: 4, background: "#164A2A", marginTop: 12 }}>
-              <div style={{ width: `${Math.min(result.score, 100)}%`, height: 4, background: band.bg }} />
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: 10 }}>
+        <Panel style={{ display: "flex", flexDirection: "column", gap: 14, padding: 20 }}>
+          {(result.tokenSymbol || result.tokenName) && (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 9, flexWrap: "wrap" }}>
+              {result.tokenSymbol && (
+                <span style={{ fontSize: 22, fontWeight: 700, color: "#D4A937", letterSpacing: "-0.01em" }}>
+                  ${result.tokenSymbol}
+                </span>
+              )}
+              {result.tokenName && (
+                <span style={{ fontSize: 14, color: "#8FB39D" }}>{result.tokenName}</span>
+              )}
             </div>
-            <div style={{ fontSize: 10, color: "#7FA68A", marginTop: 6 }}>risk score / 100</div>
-          </div>
-          <div>
-            {(result.tokenSymbol || result.tokenName) && (
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                {result.tokenSymbol && (
-                  <span style={{ fontSize: 20, fontWeight: 700, color: "#D4A937" }}>${result.tokenSymbol}</span>
-                )}
-                {result.tokenName && (
-                  <span style={{ fontSize: 14, color: "#E6FBEA" }}>{result.tokenName}</span>
-                )}
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            <div style={{ lineHeight: 1 }}>
+              <div style={{ fontSize: 52, fontWeight: 700, color: band.bg, letterSpacing: "-0.02em" }}>{result.score}</div>
+              <div style={{ fontSize: 10, color: "#5E7D6A", marginTop: 4 }}>risk score / 100</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: band.bg,
+                  color: band.fg,
+                }}
+              >
+                {formatBand(result.band)}
+              </span>
+              <div style={{ height: 3, background: "#11331F", marginTop: 12, borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(result.score, 100)}%`, height: 3, background: band.bg }} />
               </div>
-            )}
-            <span style={{ display: "inline-block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", padding: "4px 9px", background: band.bg, color: band.fg, marginBottom: 10 }}>
-              {formatBand(result.band)}
-            </span>
-            <div style={{ fontSize: 13, lineHeight: "20px", color: "#E6FBEA" }}>{result.summary}</div>
-            <div style={{ fontSize: 11, color: "#496552", marginTop: 8 }}>{formatAddress(result.tokenAddress)}</div>
+            </div>
           </div>
+
+          <div style={{ fontSize: 13, lineHeight: "20px", color: "#B7D9C2" }}>{result.summary}</div>
+
+          <AddressCopy address={result.tokenAddress} />
         </Panel>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(120px, 1fr))", gap: 1, background: "#164A2A", border: "1px solid #164A2A" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(110px, 1fr))", gap: 8 }}>
           {[
-            { label: "critical", value: result.moduleResults.filter((module) => module.status === "fail").length, color: "#FF3B30" },
-            { label: "warnings", value: result.moduleResults.filter((module) => module.status === "warn").length, color: "#FFB020" },
+            { label: "flags", value: result.moduleResults.filter((module) => module.status === "fail").length, color: "#FF3B30" },
+            { label: "watch", value: result.moduleResults.filter((module) => module.status === "warn").length, color: "#FFB020" },
             { label: "passed", value: result.moduleResults.filter((module) => module.status === "pass").length, color: "#00C805" },
-            { label: "timeouts", value: result.moduleResults.filter((module) => module.status === "timeout").length, color: "#7FA68A" },
+            { label: "skipped", value: result.moduleResults.filter((module) => module.status === "timeout").length, color: "#7FA68A" },
           ].map((stat) => (
-            <div key={stat.label} style={{ background: "#06140B", padding: 18 }}>
-              <div style={{ color: stat.color, fontSize: 28, fontWeight: 700 }}>{stat.value}</div>
-              <div style={{ color: "#7FA68A", fontSize: 11, marginTop: 4 }}>{stat.label}</div>
+            <div key={stat.label} style={{ background: "#06140B", border: "1px solid #164A2A", padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <div style={{ color: stat.color, fontSize: 30, fontWeight: 700, lineHeight: 1 }}>{stat.value}</div>
+              <div style={{ color: "#5E7D6A", fontSize: 11, marginTop: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>{stat.label}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 1, flexWrap: "wrap", marginTop: 14 }}>
-        {MODULE_TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              background: activeTab === tab ? "#0D2A19" : "#06140B",
-              border: "1px solid #164A2A",
-              color: activeTab === tab ? "#00C805" : "#7FA68A",
-              padding: "9px 13px",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            {tab}
-          </button>
-        ))}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+        {MODULE_TABS.map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                background: active ? "#0D2A19" : "transparent",
+                border: `1px solid ${active ? "#1F5A34" : "#164A2A"}`,
+                color: active ? "#00C805" : "#7FA68A",
+                padding: "7px 14px",
+                fontSize: 12,
+                fontWeight: active ? 700 : 400,
+                cursor: "pointer",
+                borderRadius: 999,
+              }}
+            >
+              {tab}
+            </button>
+          );
+        })}
       </div>
 
-      <div style={{ display: "grid", gap: 1 }}>
-      {modules.map((module) => (
-          <Panel key={module.module}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 14, alignItems: "start" }}>
-              <div>
+      <div style={{ display: "grid", gap: 8 }}>
+      {modules.map((module) => {
+          const meta = STATUS_META[module.status];
+          return (
+          <section
+            key={module.module}
+            style={{
+              background: "#06140B",
+              border: "1px solid #164A2A",
+              borderLeft: `2px solid ${meta.accent}`,
+              padding: "16px 18px",
+            }}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 16, alignItems: "start" }}>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ color: STATUS_COLOR[module.status], fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
-                    {module.status}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                      color: meta.fg,
+                      background: meta.bg,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    {meta.label}
                   </span>
-                  <span style={{ fontSize: 15, fontWeight: 700 }}>{module.label}</span>
-                  <span style={{ color: "#496552", fontSize: 11 }}>{module.module}</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#E6FBEA" }}>{module.label}</span>
+                  <span style={{ color: "#3F5A49", fontSize: 11, marginLeft: "auto" }}>
+                    {humanizeModuleName(module.module)}
+                  </span>
                 </div>
-                <p style={{ margin: "8px 0 0", color: "#7FA68A", lineHeight: "20px", fontSize: 13 }}>{module.detail}</p>
+                <p style={{ margin: "9px 0 0", color: "#8FB39D", lineHeight: "21px", fontSize: 13 }}>{module.detail}</p>
                 <EvidenceBlock evidence={module.evidence} />
               </div>
-              <div style={{ textAlign: "right", minWidth: 92 }}>
-                <div style={{ color: STATUS_COLOR[module.status], fontSize: 22, fontWeight: 700 }}>{module.score}</div>
-                <div style={{ color: "#496552", fontSize: 10 }}>weight {module.weight}</div>
-                <div style={{ color: "#496552", fontSize: 10 }}>{module.durationMs}ms</div>
+              <div style={{ textAlign: "right", minWidth: 64 }}>
+                <div style={{ color: meta.accent, fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{module.score}</div>
+                <div style={{ color: "#3F5A49", fontSize: 10, marginTop: 5, letterSpacing: "0.04em" }}>
+                  weight {module.weight}
+                </div>
               </div>
             </div>
-          </Panel>
-        ))}
+          </section>
+          );
+        })}
         {modules.length === 0 && (
           <Panel>
-            <div style={{ color: "#7FA68A", fontSize: 13 }}>No modules returned for this filter. Switch back to All or retry the scan.</div>
+            <div style={{ color: "#7FA68A", fontSize: 13 }}>No checks in this category for this scan. Switch back to All.</div>
           </Panel>
         )}
       </div>

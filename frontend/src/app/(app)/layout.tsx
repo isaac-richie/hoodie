@@ -13,9 +13,11 @@ declare global {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  // The scan results page has its own inline search bar (with a Back button),
-  // so the global command bar would be a redundant second search field there.
-  const hideCommandBar = pathname?.startsWith("/scan/");
+  // Hide the global command bar on pages that already have their own prominent
+  // scan entry, so users never see two stacked search fields:
+  //   /scan/*   — the inline "← Back / scan another address" bar
+  //   /hideout  — the "run a scan" hero input
+  const hideCommandBar = pathname?.startsWith("/scan/") || pathname === "/hideout";
 
   return (
     <WalletGate>
