@@ -26,6 +26,18 @@ function formatAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
+// Robinhood Chain block explorer — every address in the report links out so
+// users can verify our claims themselves instead of taking our word for it.
+const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL || "https://robinhoodchain.blockscout.com";
+
+function explorerAddressUrl(address: string) {
+  return `${EXPLORER_URL}/address/${address}`;
+}
+
+function explorerTokenUrl(address: string) {
+  return `${EXPLORER_URL}/token/${address}`;
+}
+
 function formatBand(band: ScanResult["band"]) {
   return band.replace("_", " ");
 }
@@ -111,8 +123,11 @@ function looksLikeAddress(value: unknown): value is string {
 
 function AddressChip({ value }: { value: string }) {
   return (
-    <span
-      title={value}
+    <a
+      href={explorerAddressUrl(value)}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`${value} — view on explorer`}
       style={{
         fontFamily: "var(--font-mono, monospace)",
         fontSize: 11,
@@ -121,42 +136,62 @@ function AddressChip({ value }: { value: string }) {
         border: "1px solid #164A2A",
         borderRadius: 3,
         padding: "1px 6px",
+        textDecoration: "none",
       }}
     >
       {formatAddress(value)}
-    </span>
+      <span style={{ color: "#3F5A49", marginLeft: 4, fontSize: 10 }}>↗</span>
+    </a>
   );
 }
 
 function AddressCopy({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button
-      onClick={() => {
-        navigator.clipboard?.writeText(address).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        });
-      }}
-      title="Copy address"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 7,
-        alignSelf: "flex-start",
-        background: "#0A1F12",
-        border: "1px solid #164A2A",
-        borderRadius: 4,
-        padding: "5px 9px",
-        cursor: "pointer",
-        fontFamily: "var(--font-mono, monospace)",
-        fontSize: 11,
-        color: "#8FB39D",
-      }}
-    >
-      {formatAddress(address)}
-      <span style={{ color: copied ? "#00C805" : "#3F5A49", fontSize: 10 }}>{copied ? "copied" : "copy"}</span>
-    </button>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start" }}>
+      <button
+        onClick={() => {
+          navigator.clipboard?.writeText(address).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          });
+        }}
+        title="Copy address"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          background: "#0A1F12",
+          border: "1px solid #164A2A",
+          borderRadius: 4,
+          padding: "5px 9px",
+          cursor: "pointer",
+          fontFamily: "var(--font-mono, monospace)",
+          fontSize: 11,
+          color: "#8FB39D",
+        }}
+      >
+        {formatAddress(address)}
+        <span style={{ color: copied ? "#00C805" : "#3F5A49", fontSize: 10 }}>{copied ? "copied" : "copy"}</span>
+      </button>
+      <a
+        href={explorerTokenUrl(address)}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="View token on block explorer"
+        style={{
+          background: "#0A1F12",
+          border: "1px solid #164A2A",
+          borderRadius: 4,
+          padding: "5px 9px",
+          fontSize: 11,
+          color: "#8FB39D",
+          textDecoration: "none",
+        }}
+      >
+        explorer ↗
+      </a>
+    </span>
   );
 }
 
@@ -193,6 +228,24 @@ function EvidenceValue({ fieldKey, value }: { fieldKey: string; value: unknown }
     return <span style={{ color: "#496552" }}>—</span>;
   }
   return <span style={{ color: "#E6FBEA", overflowWrap: "anywhere" }}>{String(value)}</span>;
+}
+
+function LiquidityValue({ text, pool }: { text: string; pool?: string }) {
+  const style: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: "#00C805", marginTop: 3 };
+  if (!pool) return <div style={style}>{text}</div>;
+  return (
+    <div style={style}>
+      <a
+        href={explorerAddressUrl(pool)}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="View LP pool on block explorer"
+        style={{ color: "inherit", textDecoration: "none", borderBottom: "1px dotted #1F5A34" }}
+      >
+        {text} <span style={{ fontSize: 10, color: "#3F5A49" }}>↗</span>
+      </a>
+    </div>
+  );
 }
 
 function moduleCategory(module: ModuleResult) {
@@ -327,6 +380,15 @@ function ScanResultView({ result, onRescan, rescanning }: { result: ScanResult; 
   const addToQuiver = useQuiverStore((state) => state.add);
   const isInQuiver = useQuiverStore((state) => state.has(result.tokenAddress));
   const band = scoreToBand(result.score);
+  // The LP pool address lives in the lp_lock module's evidence — used to make
+  // the liquidity stat link straight to the pool on the explorer.
+  const poolAddress = (() => {
+    const evidence = result.moduleResults.find((m) => m.module === "lp_lock")?.evidence as
+      | Record<string, unknown>
+      | undefined;
+    const pool = evidence?.pool;
+    return typeof pool === "string" && /^0x[a-fA-F0-9]{40}$/.test(pool) ? pool : undefined;
+  })();
   const timedOut = result.modulesTotal - result.modulesRan;
   const gated = result.summary.toLowerCase().includes("advanced") || result.moduleResults.length < 14;
   const modules = useMemo(() => {
@@ -437,12 +499,12 @@ function ScanResultView({ result, onRescan, rescanning }: { result: ScanResult; 
               {result.liquidityUsd != null ? (
                 <div>
                   <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>liquidity</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#00C805", marginTop: 3 }}>{formatUsd(result.liquidityUsd)}</div>
+                  <LiquidityValue text={formatUsd(result.liquidityUsd)} pool={poolAddress} />
                 </div>
               ) : result.liquidityEth != null ? (
                 <div>
                   <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>liquidity</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#00C805", marginTop: 3 }}>Ξ {result.liquidityEth.toFixed(2)}</div>
+                  <LiquidityValue text={`Ξ ${result.liquidityEth.toFixed(2)}`} pool={poolAddress} />
                 </div>
               ) : null}
             </div>
