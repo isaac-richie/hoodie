@@ -10,7 +10,7 @@ import { robinhoodChain } from "@/lib/wagmi";
 import { useSessionStore } from "@/stores/session";
 
 type ButtonSize = "compact" | "full";
-type MenuPlacement = "bottom" | "top";
+type MenuPlacement = "bottom" | "top" | "sidebar";
 
 interface HoodWalletButtonProps {
   size?: ButtonSize;
@@ -182,8 +182,19 @@ function PrivyWalletButtonInner({ size = "compact", menuPlacement = "bottom", sh
         <div
           style={{
             position: "absolute",
-            ...(menuPlacement === "top" ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
-            right: 0,
+            ...(menuPlacement === "sidebar"
+              ? {
+                  position: "fixed",
+                  left: 12,
+                  bottom: 76,
+                  width: "min(260px, calc(100vw - 24px))",
+                  maxHeight: "calc(100vh - 96px)",
+                  overflowY: "auto",
+                }
+              : menuPlacement === "top"
+                ? { bottom: "calc(100% + 6px)" }
+                : { top: "calc(100% + 6px)" }),
+            ...(menuPlacement === "sidebar" ? {} : { right: 0 }),
             minWidth: 200,
             maxWidth: 300,
             background: "#06140B",

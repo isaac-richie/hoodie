@@ -217,7 +217,7 @@ export function AppSidebar() {
             </Link>
           ))}
           <div style={{ padding: "10px 10px", fontSize: 10, color: "#496552", lineHeight: "16px" }}>
-            <HoodWalletButton size="full" menuPlacement="top" />
+            <HoodWalletButton size="full" menuPlacement="sidebar" />
           </div>
         </div>
       </nav>

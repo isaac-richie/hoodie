@@ -86,7 +86,7 @@ export default function HideoutPage() {
         >
           run a scan
         </div>
-        <div style={{ display: "flex", gap: 12, position: "relative" }}>
+        <div className="hideout-scan-row" style={{ display: "flex", gap: 12, position: "relative" }}>
           <div
             style={{
               flex: 1,
@@ -118,6 +118,7 @@ export default function HideoutPage() {
           </div>
           <button
             onClick={runCmd}
+            className="hideout-scan-button"
             style={{
               background: "#D4A937",
               color: "#0A1F12",

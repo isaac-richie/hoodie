@@ -505,6 +505,8 @@ button:active, [role="button"]:active {
 
   /* App pages */
   .hideout-grid { grid-template-columns: 1fr !important; }
+  .hideout-scan-row { flex-direction: column !important; }
+  .hideout-scan-button { width: 100% !important; min-height: 44px; }
   .quiver-layout { grid-template-columns: 1fr !important; }
   .warrants-layout { grid-template-columns: 1fr !important; }
   .scan-stats-grid { grid-template-columns: 1fr 1fr 1fr !important; }
