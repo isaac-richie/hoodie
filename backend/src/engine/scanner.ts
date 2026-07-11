@@ -22,6 +22,7 @@ import { scoreToband, computeConfidence } from "./scoring/score.js";
 import { registry } from "./modules/registry.js";
 import type { ScanContext, ScanResult, ModuleResult } from "./types.js";
 import { resolveTokenMeta } from "../services/token-meta.js";
+import { resolveMarketData } from "../services/market-data.js";
 import { persistScanResult } from "./persist.js";
 import { logger } from "../utils/logger.js";
 
@@ -57,11 +58,21 @@ export async function scanToken(tokenAddress: Address): Promise<ScanResult> {
     name: meta.name,
   };
 
+  // Market data (price/MC/liquidity) runs alongside the modules — it's
+  // decoration for the report header, never a scan blocker.
+  const marketDataPromise = resolveMarketData({
+    tokenAddress: addr,
+    lpInfo: meta.lpInfo,
+    totalSupply: meta.totalSupply,
+    decimals: meta.decimals,
+  });
+
   // Run all modules in parallel with timeout
   const modules = registry.getAll();
   const results = await Promise.allSettled(
     modules.map((mod) => runModuleWithTimeout(mod, ctx))
   );
+  const marketData = await marketDataPromise;
 
   const moduleResults: ModuleResult[] = [];
   let timedOut = 0;
@@ -106,6 +117,10 @@ export async function scanToken(tokenAddress: Address): Promise<ScanResult> {
     tokenAddress: addr,
     tokenName: meta.name,
     tokenSymbol: meta.symbol,
+    priceUsd: marketData.priceUsd,
+    marketCapUsd: marketData.marketCapUsd,
+    liquidityUsd: marketData.liquidityUsd,
+    liquidityEth: marketData.liquidityEth,
     score,
     band,
     confidence,

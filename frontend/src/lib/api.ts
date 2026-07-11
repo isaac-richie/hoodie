@@ -29,6 +29,10 @@ export interface ScanResult {
   tokenAddress: `0x${string}`;
   tokenName?: string;
   tokenSymbol?: string;
+  priceUsd?: number | null;
+  marketCapUsd?: number | null;
+  liquidityUsd?: number | null;
+  liquidityEth?: number | null;
   score: number;
   band: BackendRiskBand;
   confidence: Confidence;

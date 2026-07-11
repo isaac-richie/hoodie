@@ -79,6 +79,15 @@ function humanizeKey(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+function formatUsd(value: number): string {
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+  if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
+  if (value >= 0.01) return `$${value.toFixed(2)}`;
+  if (value > 0) return `$${value.toPrecision(3)}`;
+  return "$0";
+}
+
 function humanizeModuleName(name: string): string {
   const spaced = name.replace(/[_-]+/g, " ");
   return spaced.replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\bLp\b/, "LP").replace(/\bV3\b/i, "V3");
@@ -397,6 +406,34 @@ function ScanResultView({ result, onRescan }: { result: ScanResult; onRescan: ()
           </div>
 
           <div style={{ fontSize: 13, lineHeight: "20px", color: "#B7D9C2" }}>{result.summary}</div>
+
+          {(result.priceUsd != null || result.marketCapUsd != null || result.liquidityUsd != null || result.liquidityEth != null) && (
+            <div style={{ display: "flex", gap: 18, flexWrap: "wrap", borderTop: "1px solid #11331F", paddingTop: 12 }}>
+              {result.priceUsd != null && (
+                <div>
+                  <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>price</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#E6FBEA", marginTop: 3 }}>{formatUsd(result.priceUsd)}</div>
+                </div>
+              )}
+              {result.marketCapUsd != null && (
+                <div>
+                  <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>market cap</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#D4A937", marginTop: 3 }}>{formatUsd(result.marketCapUsd)}</div>
+                </div>
+              )}
+              {result.liquidityUsd != null ? (
+                <div>
+                  <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>liquidity</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#00C805", marginTop: 3 }}>{formatUsd(result.liquidityUsd)}</div>
+                </div>
+              ) : result.liquidityEth != null ? (
+                <div>
+                  <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>liquidity</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#00C805", marginTop: 3 }}>Ξ {result.liquidityEth.toFixed(2)}</div>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           <AddressCopy address={result.tokenAddress} />
         </Panel>

@@ -50,6 +50,10 @@ export interface ScanResult {
   tokenAddress: Address;
   tokenName?: string;
   tokenSymbol?: string;
+  priceUsd?: number | null;
+  marketCapUsd?: number | null;
+  liquidityUsd?: number | null;
+  liquidityEth?: number | null;
   score: number;
   band: RiskBand;
   confidence: Confidence;
