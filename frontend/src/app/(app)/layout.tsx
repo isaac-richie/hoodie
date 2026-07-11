@@ -25,9 +25,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <WalletGate>
-      <div style={{ display: "flex", minHeight: "100vh", background: "#0A1F12", alignItems: "stretch" }}>
-        <AppSidebar />
+    <div style={{ display: "flex", minHeight: "100vh", background: "#0A1F12", alignItems: "stretch" }}>
+      <AppSidebar />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
           <div className="mobile-topbar">
             <button
@@ -49,11 +48,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           {!hideCommandBar && <CommandBar />}
+          {/* Gate only the page content — the sidebar stays navigable so a
+              visitor hitting an account-bound page can still move around. */}
           <main style={{ flex: 1, padding: "14px 14px 56px", minWidth: 0 }}>
-            {children}
+            <WalletGate>{children}</WalletGate>
           </main>
         </div>
-      </div>
-    </WalletGate>
+    </div>
   );
 }
