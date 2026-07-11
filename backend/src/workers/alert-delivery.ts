@@ -5,6 +5,7 @@ import { db } from "../db/client.js";
 import { alertEvents } from "../db/schema.js";
 import { ALERT_DELIVERY_QUEUE, type AlertDeliveryJobData } from "../services/alert-evaluator.js";
 import { logger } from "../utils/logger.js";
+import { assertSafeWebhookTarget } from "../utils/safe-url.js";
 
 export function startAlertDeliveryWorker(): Worker {
   const worker = new Worker<AlertDeliveryJobData>(
@@ -17,10 +18,17 @@ export function startAlertDeliveryWorker(): Worker {
           throw new Error("webhook channel missing webhookUrl");
         }
 
-        const response = await fetch(data.webhookUrl, {
+        // Re-validate at send time (defeats DNS rebinding since creation) and
+        // resolve the host to confirm it isn't a private/metadata address.
+        const safeUrl = await assertSafeWebhookTarget(data.webhookUrl);
+
+        // Bound the request so a slow/hanging endpoint can't tie up a worker.
+        const response = await fetch(safeUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data.payload),
+          redirect: "error", // don't follow redirects into blocked ranges
+          signal: AbortSignal.timeout(10_000),
         });
 
         if (!response.ok) {

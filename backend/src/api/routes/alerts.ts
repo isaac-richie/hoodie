@@ -8,13 +8,18 @@ import { alertEvents, alerts } from "../../db/schema.js";
 import { sendApiError } from "../errors.js";
 import { assertUserAccess, getRequestUserId } from "../guards.js";
 import { requireScope } from "../product-rules.js";
+import { isStructurallyAllowedWebhookUrl } from "../../utils/safe-url.js";
 
 const alertBodySchema = z.object({
   targetAddress: z.string().refine((value) => isAddress(value), "Invalid target address"),
   triggerType: z.string().min(1),
   threshold: z.number().int().min(0).max(100).optional(),
   deliveryChannels: z.array(z.string().min(1)).optional().default(["in_app"]),
-  webhookUrl: z.string().url().optional(),
+  webhookUrl: z
+    .string()
+    .url()
+    .refine(isStructurallyAllowedWebhookUrl, "Webhook must be a public http(s) URL (no localhost or private addresses)")
+    .optional(),
   isActive: z.boolean().optional().default(true),
 });
 

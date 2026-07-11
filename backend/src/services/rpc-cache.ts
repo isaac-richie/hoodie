@@ -401,9 +401,15 @@ export const cachedRpc = {
     toBlock: bigint | "latest";
     maxRangeBlocks?: number;
     concurrency?: number;
+    maxChunks?: number;
   }): Promise<any[]> {
     const maxRange = BigInt(params.maxRangeBlocks ?? 9_000);
     const concurrency = params.concurrency ?? 5;
+    // Safety valve: an unbounded from-genesis scan over millions of blocks would
+    // fan out to hundreds of RPC calls and hang a request (a DoS vector). Cap the
+    // number of chunks; when the requested range exceeds it, scan the MOST RECENT
+    // window (newest blocks are where a recently-launched token's events live).
+    const maxChunks = params.maxChunks ?? 400;
 
     const toBlock = params.toBlock === "latest"
       ? await this.getBlockNumber()
@@ -411,8 +417,20 @@ export const cachedRpc = {
 
     if (params.fromBlock > toBlock) return [];
 
+    let effectiveFrom = params.fromBlock;
+    const totalChunks = Number((toBlock - effectiveFrom) / maxRange) + 1;
+    if (totalChunks > maxChunks) {
+      const window = maxRange * BigInt(maxChunks);
+      effectiveFrom = toBlock - window + 1n;
+      if (effectiveFrom < params.fromBlock) effectiveFrom = params.fromBlock;
+      logger.warn(
+        { requestedChunks: totalChunks, maxChunks, scannedFrom: effectiveFrom.toString(), toBlock: toBlock.toString() },
+        "getLogsChunked: range too large, scanning most recent window only"
+      );
+    }
+
     const ranges: { from: bigint; to: bigint }[] = [];
-    for (let from = params.fromBlock; from <= toBlock; from += maxRange) {
+    for (let from = effectiveFrom; from <= toBlock; from += maxRange) {
       const to = from + maxRange - 1n > toBlock ? toBlock : from + maxRange - 1n;
       ranges.push({ from, to });
     }

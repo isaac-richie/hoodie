@@ -123,9 +123,10 @@ function rank(tier: ProductTier): number {
 function getIdentity(request: FastifyRequest): string {
   const userId = (request as any).userId as string | undefined;
   const apiKeyId = (request as any).apiKeyId as string | undefined;
-  const forwarded = request.headers["x-forwarded-for"];
-  const ip = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0] ?? request.ip;
-  return userId ?? apiKeyId ?? ip ?? "unknown";
+  // Use request.ip, which Fastify derives from X-Forwarded-For ONLY when
+  // trustProxy is enabled (i.e. behind a known proxy). Reading the raw XFF
+  // header here let any client spoof it and mint a fresh quota per request.
+  return userId ?? apiKeyId ?? request.ip ?? "unknown";
 }
 
 async function increment(key: string, ttlSeconds: number): Promise<number> {

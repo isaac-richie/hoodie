@@ -14,13 +14,23 @@ import { scanToken } from "../../engine/scanner.js";
 import { isAddress } from "viem";
 import { sendApiError } from "../errors.js";
 import { applyModuleGate, enforceScanQuota, requireScope } from "../product-rules.js";
+import { withScanSlot, ScanOverloadedError } from "../scan-limiter.js";
 
 const scanBodySchema = z.object({
   token: z.string().refine((v) => isAddress(v), "Invalid token address"),
 });
 
+function handleScanError(reply: Parameters<typeof sendApiError>[0], err: unknown) {
+  if (err instanceof ScanOverloadedError) {
+    return sendApiError(reply, 503, "SCAN_OVERLOADED", "scanner is busy — try again in a moment");
+  }
+  return sendApiError(reply, 500, "SCAN_FAILED", "scan failed", {
+    message: (err as Error).message,
+  });
+}
+
 export async function scanRoutes(app: FastifyInstance) {
-  // POST /v1/analyze — full 31-module scan
+  // POST /v1/analyze — full 14-module scan
   app.post("/v1/analyze", async (req, reply) => {
     const body = scanBodySchema.safeParse(req.body);
     if (!body.success) {
@@ -36,7 +46,7 @@ export async function scanRoutes(app: FastifyInstance) {
     if (!(await enforceScanQuota(req, reply))) return;
 
     try {
-      const rawResult = await scanToken(body.data.token as `0x${string}`);
+      const rawResult = await withScanSlot(() => scanToken(body.data.token as `0x${string}`));
       const result = applyModuleGate(rawResult, req);
 
       // Check if partial (some modules timed out)
@@ -46,9 +56,7 @@ export async function scanRoutes(app: FastifyInstance) {
 
       return reply.send(result);
     } catch (err) {
-      return sendApiError(reply, 500, "SCAN_FAILED", "scan failed", {
-        message: (err as Error).message,
-      });
+      return handleScanError(reply, err);
     }
   });
 
@@ -64,7 +72,7 @@ export async function scanRoutes(app: FastifyInstance) {
       if (!(await enforceScanQuota(req, reply))) return;
 
       try {
-        const rawResult = await scanToken(address as `0x${string}`);
+        const rawResult = await withScanSlot(() => scanToken(address as `0x${string}`));
         const result = applyModuleGate(rawResult, req);
 
         if (result.modulesRan < result.modulesTotal) {
@@ -73,9 +81,7 @@ export async function scanRoutes(app: FastifyInstance) {
 
         return reply.send(result);
       } catch (err) {
-        return sendApiError(reply, 500, "SCAN_FAILED", "scan failed", {
-          message: (err as Error).message,
-        });
+        return handleScanError(reply, err);
       }
     }
   );
@@ -89,9 +95,12 @@ export async function scanRoutes(app: FastifyInstance) {
         return sendApiError(reply, 422, "INVALID_ADDRESS", "invalid address");
       }
       if (!requireScope(req, reply, "scan:read")) return;
+      // This runs a full scan under the hood — meter it like the others, or it
+      // becomes a free, unlimited way to drive RPC-heavy scans.
+      if (!(await enforceScanQuota(req, reply))) return;
 
       try {
-        const result = await scanToken(address as `0x${string}`);
+        const result = await withScanSlot(() => scanToken(address as `0x${string}`));
         return reply.send({
           token: address,
           score: result.score,
@@ -101,9 +110,7 @@ export async function scanRoutes(app: FastifyInstance) {
           modulesTotal: result.modulesTotal,
         });
       } catch (err) {
-        return sendApiError(reply, 500, "SCAN_FAILED", "scan failed", {
-          message: (err as Error).message,
-        });
+        return handleScanError(reply, err);
       }
     }
   );

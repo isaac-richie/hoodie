@@ -32,9 +32,29 @@ import { sendApiError } from "./errors.js";
 export async function createServer() {
   const app = Fastify({
     logger: false,
+    // Only trust X-Forwarded-For when explicitly behind a known proxy. Otherwise
+    // a client could spoof XFF to forge its identity and bypass rate limits/quotas.
+    trustProxy: env.trustProxy,
   });
 
-  await app.register(cors, { origin: true, credentials: true });
+  // CORS: with credentials enabled, reflecting every origin (`origin: true`) lets
+  // any website a logged-in user visits call this API as them. Lock to an explicit
+  // allowlist. In dev (no allowlist configured) we reflect the request origin for
+  // convenience; production boot already refuses to start without CORS_ORIGINS set.
+  const allowlist = env.corsOrigins;
+  await app.register(cors, {
+    credentials: true,
+    origin: allowlist.length === 0
+      ? true
+      : (origin, cb) => {
+          // Same-origin / non-browser requests send no Origin header — allow them.
+          if (!origin || allowlist.includes(origin)) {
+            cb(null, true);
+            return;
+          }
+          cb(new Error("Origin not allowed by CORS policy"), false);
+        },
+  });
   await app.register(rateLimit, {
     max: 100,
     timeWindow: "1 minute",

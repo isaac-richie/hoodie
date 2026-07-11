@@ -9,6 +9,7 @@ export type ApiErrorCode =
   | "BAD_SIGNATURE"
   | "NOT_FOUND"
   | "SCAN_FAILED"
+  | "SCAN_OVERLOADED"
   | "UPSTREAM_ERROR"
   | "SCOPE_REQUIRED"
   | "SCAN_QUOTA_EXCEEDED"
