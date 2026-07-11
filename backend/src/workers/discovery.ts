@@ -52,8 +52,28 @@ function startWsWatcher(): () => void {
     transport: webSocket(env.rpcWss),
   });
 
+  // "Watcher active" only means we *asked* for blocks. A bad WSS hostname or a
+  // silently stalled socket looks identical at startup — so announce the first
+  // block loudly, and complain if none arrive within the watchdog window.
+  let blocksSeen = 0;
+  const WATCHDOG_MS = 60_000;
+  const watchdog = setInterval(() => {
+    if (blocksSeen === 0) {
+      logger.error(
+        { rpcWss: env.rpcWss.replace(/\/[^/]+$/, "/***"), waitedMs: WATCHDOG_MS },
+        "discovery: websocket connected but NO blocks received — check RPC_WSS hostname/key"
+      );
+    }
+  }, WATCHDOG_MS);
+  watchdog.unref?.();
+
   const unwatch = wsClient.watchBlocks({
     onBlock: async (block) => {
+      blocksSeen++;
+      if (blocksSeen === 1) {
+        clearInterval(watchdog);
+        logger.info({ block: Number(block.number) }, "discovery: first block received — live watcher confirmed healthy");
+      }
       try {
         await processBlock(Number(block.number), block.transactions as Hash[]);
       } catch (err) {
@@ -63,8 +83,11 @@ function startWsWatcher(): () => void {
     includeTransactions: false,
   });
 
-  logger.info("discovery: websocket watcher active");
-  return unwatch;
+  logger.info("discovery: websocket watcher active (awaiting first block)");
+  return () => {
+    clearInterval(watchdog);
+    unwatch();
+  };
 }
 
 function startPollingWatcher(): () => void {
