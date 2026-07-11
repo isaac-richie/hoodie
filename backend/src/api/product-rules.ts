@@ -23,6 +23,8 @@ const CORE_MODULES = new Set([
   "trading_pause",
   "proxy_check",
   "deployer_reputation",
+  "scam_template",
+  "source_verification",
 ]);
 
 const POLICIES: Record<ProductTier, TierPolicy> = {

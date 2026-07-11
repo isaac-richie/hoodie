@@ -17,6 +17,7 @@
  *    8 — ownership, sniper_detect
  *    7 — blacklist
  *    6 — trading_pause, fresh_wallets
+ *    5 — source_verification
  */
 import type { ScanModule } from "../types.js";
 import { honeypotModule } from "./honeypot.js";
@@ -33,6 +34,7 @@ import { tradingPauseModule } from "./trading-pause.js";
 import { sniperDetectModule } from "./sniper-detect.js";
 import { freshWalletModule } from "./fresh-wallets.js";
 import { scamTemplateModule } from "./scam-template.js";
+import { sourceVerificationModule } from "./source-verification.js";
 
 class ModuleRegistry {
   private modules: ScanModule[] = [];
@@ -71,3 +73,4 @@ registry.register(tradingPauseModule);
 registry.register(sniperDetectModule);
 registry.register(freshWalletModule);
 registry.register(scamTemplateModule);
+registry.register(sourceVerificationModule);

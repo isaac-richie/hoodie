@@ -1,7 +1,7 @@
 /**
  * Scan Orchestrator — the main entry point for token risk analysis.
  *
- * Flow: cache check → resolve token metadata → run all 14 modules in parallel
+ * Flow: cache check → resolve token metadata → run all modules in parallel
  *       → compute weighted score → cache result → persist to DB (async)
  *
  * Each module returns a score (0-100) and a weight. The final score is:

@@ -45,6 +45,19 @@ export const scamTemplateModule: ScanModule = {
         };
       }
 
+      if (SCAM_TEMPLATES.length === 0) {
+        return {
+          module: "scam_template",
+          status: "warn",
+          score: 5,
+          weight: 10,
+          label: "scam template database not seeded",
+          detail: "No known scam bytecode templates are configured yet, so this check cannot prove template safety. Behavioral modules still ran.",
+          evidence: { templatesChecked: 0, databaseSeeded: false },
+          durationMs: Date.now() - start,
+        };
+      }
+
       const match = findTemplateMatch(bytecode);
 
       if (match) {
@@ -67,7 +80,7 @@ export const scamTemplateModule: ScanModule = {
         weight: 10,
         label: "no known scam template match",
         detail: "Bytecode does not match any known scam template in the database.",
-        evidence: { templatesChecked: SCAM_TEMPLATES.length },
+        evidence: { templatesChecked: SCAM_TEMPLATES.length, databaseSeeded: true },
         durationMs: Date.now() - start,
       };
     } catch (err) {

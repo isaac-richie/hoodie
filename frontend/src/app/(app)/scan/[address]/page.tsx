@@ -61,7 +61,19 @@ const EVIDENCE_LABELS: Record<string, string> = {
   count: "Snipers", soldAll: "Already exited", address: "Wallet",
   hasBlacklist: "Blacklist function", hasPause: "Pause function",
   templatesChecked: "Templates checked",
+  databaseSeeded: "Template database seeded",
+  explorerConfigured: "Explorer configured",
+  verified: "Source verified",
+  contractName: "Contract name",
+  compilerVersion: "Compiler",
+  proxy: "Proxy",
+  implementation: "Implementation",
+  abiAvailable: "ABI available",
   verifiedBy: "Verified by", externalVerifier: "External verifier",
+  positionsChecked: "Positions checked", burnedPositions: "Burned positions",
+  lockedPositions: "Locked positions", unlockedPositions: "Unlocked positions",
+  unlockedOwners: "Unlocked holders", owners: "Position owners",
+  highVolume: "High-volume token",
 };
 // Internal plumbing that shouldn't reach a person reading a report.
 const EVIDENCE_HIDE = new Set([

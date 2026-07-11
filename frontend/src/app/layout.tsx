@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Hood Terminal — Robinhood Chain token risk intelligence",
   description:
-    "Scan any Robinhood Chain token. 14 modules. One verdict. Every piece of evidence on the table.",
+    "Scan any Robinhood Chain token. 15 modules. One verdict. Every piece of evidence on the table.",
 };
 
 export default function RootLayout({

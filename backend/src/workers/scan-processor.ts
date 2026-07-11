@@ -2,7 +2,7 @@
  * Scan Processor — BullMQ worker that processes token scan jobs.
  *
  * Consumes jobs from the "token-scan" queue (produced by discovery.ts or the API).
- * Each job runs the full 14-module scan engine against a token address.
+ * Each job runs the full scan engine against a token address.
  *
  * Rate limited to 10 jobs/second to avoid hammering the RPC.
  * Failed jobs retry 3 times with exponential backoff (5s, 10s, 20s).

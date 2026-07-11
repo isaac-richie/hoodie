@@ -6,7 +6,7 @@ import { tagColor, SCAN_LOG_LINES } from "@/lib/mock-data";
 import { BinRain } from "@/components/ui/BinRain";
 
 const LOG_LINES = [
-  { m: "dispatch", tag: "  ..", msg: "scouting sherwood · 14 modules" },
+  { m: "dispatch", tag: "  ..", msg: "scouting sherwood · 15 modules" },
   { m: "honeypot_sim", tag: "[ OK ]", msg: "sell executed · 4.1% tax" },
   { m: "hidden_mint", tag: "[ OK ]", msg: "none found" },
   { m: "bundles", tag: "[FAIL]", msg: "22% of supply · one funder" },

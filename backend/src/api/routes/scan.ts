@@ -38,7 +38,7 @@ function handleScanError(reply: Parameters<typeof sendApiError>[0], err: unknown
 }
 
 export async function scanRoutes(app: FastifyInstance) {
-  // POST /v1/analyze — full 14-module scan
+  // POST /v1/analyze — full scan engine
   app.post("/v1/analyze", async (req, reply) => {
     const body = scanBodySchema.safeParse(req.body);
     if (!body.success) {
