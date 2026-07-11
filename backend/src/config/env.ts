@@ -52,6 +52,10 @@ const envSchema = z.object({
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().optional().default(60 * 60 * 24 * 7),
   COOKIE_SECURE: optionalBoolFromEnv,
   SCAN_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(10000),
+  // Wall-clock cap on the pre-module resolution phase (deployer, LP pool,
+  // launchpad lookups). SCAN_TIMEOUT_MS only bounds individual modules — without
+  // this cap a cold deep log scan can run for minutes before modules even start.
+  META_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(15000),
   SCAN_CONCURRENCY: z.coerce.number().int().positive().optional().default(31),
   // Max scans running inline on the HTTP layer at once (separate from the
   // background worker's SCAN_CONCURRENCY). Bounds RPC/DB fan-out under load.
@@ -131,6 +135,7 @@ export const env = {
   sessionTtlSeconds: values.SESSION_TTL_SECONDS,
   cookieSecure: values.COOKIE_SECURE ?? values.NODE_ENV === "production",
   scanTimeoutMs: values.SCAN_TIMEOUT_MS,
+  metaTimeoutMs: values.META_TIMEOUT_MS,
   scanConcurrency: values.SCAN_CONCURRENCY,
   apiScanConcurrency: values.API_SCAN_CONCURRENCY,
   cacheScanTtlS: values.CACHE_SCAN_TTL_S,

@@ -331,12 +331,16 @@ async function searchPairCreatedEvents(tokenAddress: Address): Promise<LpPoolInf
 
   for (const dex of contractConfig.dexFactories) {
     try {
-      // Search with token as token0
+      // This is a fallback for pools the factory getPair lookup missed (e.g.
+      // paired with a non-quote token). Cap the window: 40 chunks ≈ 360k most
+      // recent blocks. An uncapped from-genesis scan here (400 chunks) was the
+      // cause of 2-minute scans — this phase runs before any module timeout.
       const logs0 = await cachedRpc.getLogsChunked({
         address: dex.address,
         event: pairCreatedEvent,
         fromBlock: 0n,
         toBlock: "latest",
+        maxChunks: 40,
       });
 
       for (const log of logs0) {

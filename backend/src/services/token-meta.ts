@@ -16,9 +16,11 @@ import type { Address } from "viem";
 import { cachedRpc } from "./rpc-cache.js";
 import { erc20Abi } from "../utils/abis.js";
 import { redis, CACHE_KEYS } from "../config/redis.js";
+import { env } from "../config/env.js";
 import { resolveDeployer } from "./deployer-resolver.js";
 import { findLpPool, type LpPoolInfo } from "./lp-resolver.js";
 import { resolveLaunchpadInfo, type LaunchpadInfo } from "./launchpad-resolver.js";
+import { logger } from "../utils/logger.js";
 
 export interface TokenMeta {
   address: Address;
@@ -40,31 +42,53 @@ export async function resolveTokenMeta(address: Address): Promise<TokenMeta> {
 
   const meta: TokenMeta = { address };
 
+  // Wall-clock budget for the whole resolution phase. Every resolver races this
+  // one shared deadline — a resolver that misses it yields null and the scan
+  // proceeds with partial metadata instead of stalling the user for minutes.
+  const deadlineAt = Date.now() + env.metaTimeoutMs;
+  let timedOut = false;
+  const bounded = async <T>(promise: Promise<T>): Promise<T | null> => {
+    const remaining = deadlineAt - Date.now();
+    if (remaining <= 0) {
+      timedOut = true;
+      return null;
+    }
+    const result = await Promise.race([
+      promise.then((value) => ({ value, hit: false })).catch(() => ({ value: null as T | null, hit: false })),
+      new Promise<{ value: null; hit: true }>((resolve) => {
+        const timer = setTimeout(() => resolve({ value: null, hit: true }), remaining);
+        timer.unref?.();
+      }),
+    ]);
+    if (result.hit) timedOut = true;
+    return result.value;
+  };
+
   // Fetch ERC20 info + deployer + LP in parallel.
-  const [name, symbol, decimals, totalSupply, deployInfo, lpInfo] = await Promise.allSettled([
-    cachedRpc.readContract({ address, abi: erc20Abi, functionName: "name", ttlMs: 3600_000 }),
-    cachedRpc.readContract({ address, abi: erc20Abi, functionName: "symbol", ttlMs: 3600_000 }),
-    cachedRpc.readContract({ address, abi: erc20Abi, functionName: "decimals", ttlMs: 3600_000 }),
-    cachedRpc.readContract({ address, abi: erc20Abi, functionName: "totalSupply", ttlMs: 60_000 }),
-    resolveDeployer(address),
-    findLpPool(address),
+  const [name, symbol, decimals, totalSupply, deployInfo, lpInfo] = await Promise.all([
+    bounded(cachedRpc.readContract({ address, abi: erc20Abi, functionName: "name", ttlMs: 3600_000 })),
+    bounded(cachedRpc.readContract({ address, abi: erc20Abi, functionName: "symbol", ttlMs: 3600_000 })),
+    bounded(cachedRpc.readContract({ address, abi: erc20Abi, functionName: "decimals", ttlMs: 3600_000 })),
+    bounded(cachedRpc.readContract({ address, abi: erc20Abi, functionName: "totalSupply", ttlMs: 60_000 })),
+    bounded(resolveDeployer(address)),
+    bounded(findLpPool(address)),
   ]);
 
-  if (name.status === "fulfilled") meta.name = name.value as string;
-  if (symbol.status === "fulfilled") meta.symbol = symbol.value as string;
-  if (decimals.status === "fulfilled") meta.decimals = Number(decimals.value);
-  if (totalSupply.status === "fulfilled") meta.totalSupply = totalSupply.value as bigint;
+  if (name != null) meta.name = name as string;
+  if (symbol != null) meta.symbol = symbol as string;
+  if (decimals != null) meta.decimals = Number(decimals);
+  if (totalSupply != null) meta.totalSupply = totalSupply as bigint;
 
-  if (deployInfo.status === "fulfilled" && deployInfo.value) {
-    meta.deployer = deployInfo.value.deployer;
-    meta.deployBlock = deployInfo.value.deployBlock;
-    meta.deployTx = deployInfo.value.deployTx;
+  if (deployInfo) {
+    meta.deployer = deployInfo.deployer;
+    meta.deployBlock = deployInfo.deployBlock;
+    meta.deployTx = deployInfo.deployTx;
   }
 
-  if (lpInfo.status === "fulfilled" && lpInfo.value) {
-    meta.lpPool = lpInfo.value.poolAddress;
-    meta.lpInfo = lpInfo.value;
-    meta.launchpad = lpInfo.value.launchpad;
+  if (lpInfo) {
+    meta.lpPool = lpInfo.poolAddress;
+    meta.lpInfo = lpInfo;
+    meta.launchpad = lpInfo.launchpad;
   }
 
   // On-chain launchpad deployer fallback: when the block explorer creator lookup
@@ -72,18 +96,20 @@ export async function resolveTokenMeta(address: Address): Promise<TokenMeta> {
   // launchpad's TokenLaunched event — but only bounded by a known deploy block,
   // since an unbounded from-genesis event scan is far too slow to run per request.
   if (!meta.deployer && meta.deployBlock) {
-    try {
-      const launchpadInfo = await resolveLaunchpadInfo(address, meta.deployBlock);
-      if (launchpadInfo?.deployer) {
-        meta.deployer = launchpadInfo.deployer;
-        if (!meta.launchpad) meta.launchpad = launchpadInfo;
-      }
-    } catch {
-      // best-effort fallback only
+    const launchpadInfo = await bounded(resolveLaunchpadInfo(address, meta.deployBlock));
+    if (launchpadInfo?.deployer) {
+      meta.deployer = launchpadInfo.deployer;
+      if (!meta.launchpad) meta.launchpad = launchpadInfo;
     }
   }
 
-  await redis.setex(CACHE_KEYS.tokenMeta(address), 3600, JSON.stringify(meta, bigIntReplacer));
+  // A deadline miss means the metadata is incomplete — cache it briefly so the
+  // next scan retries (the chunk caches it warmed make the retry much faster),
+  // instead of pinning a degraded result for a full hour.
+  if (timedOut) {
+    logger.warn({ token: address, budgetMs: env.metaTimeoutMs }, "token meta resolution hit wall-clock cap — proceeding with partial metadata");
+  }
+  await redis.setex(CACHE_KEYS.tokenMeta(address), timedOut ? 300 : 3600, JSON.stringify(meta, bigIntReplacer));
 
   return meta;
 }
