@@ -50,8 +50,43 @@ export function startScanProcessor(): Worker {
     }
   );
 
-  worker.on("failed", (job, err) => {
-    logger.error({ jobId: job?.id, err: err.message }, "scan job failed");
+  // Dead-letter handling: a job that has exhausted its retry budget is silently
+  // dropped by BullMQ. That's fine for one bad token, but a spike (RPC outage,
+  // upstream schema change) can drain the queue invisibly. Track exhausted
+  // failures per minute in Redis and fatal-log when the rate crosses a floor
+  // — the process manager / monitoring can page from there.
+  const DEAD_LETTER_KEY = "scan:deadletter";
+  const DEAD_LETTER_ALERT_THRESHOLD = 5; // exhausted failures per rolling minute
+
+  worker.on("failed", async (job, err) => {
+    const exhausted = job && job.attemptsMade >= (job.opts.attempts ?? 1);
+    if (!exhausted) {
+      // Still retrying — warn, don't page.
+      logger.warn({ jobId: job?.id, attempt: job?.attemptsMade, err: err.message }, "scan job attempt failed, will retry");
+      return;
+    }
+    logger.error(
+      { jobId: job?.id, tokenAddress: job?.data.tokenAddress, attempts: job?.attemptsMade, err: err.message },
+      "scan job DEAD-LETTERED — retries exhausted"
+    );
+    try {
+      // Rolling window: increment a minute-bucketed counter with a 90s expiry
+      // so the count naturally decays. A 5+ count in one minute is a systemic
+      // issue that deserves loud attention.
+      const bucket = Math.floor(Date.now() / 60_000);
+      const key = `${DEAD_LETTER_KEY}:${bucket}`;
+      const { redis } = await import("../config/redis.js");
+      const count = await redis.incr(key);
+      if (count === 1) await redis.expire(key, 90);
+      if (count >= DEAD_LETTER_ALERT_THRESHOLD) {
+        logger.fatal(
+          { count, windowMinuteBucket: bucket },
+          `SCAN DEAD-LETTER FLOOD: ${count} scans exhausted retries within this minute — investigate RPC / upstream health`
+        );
+      }
+    } catch (bookkeepingErr) {
+      logger.error({ err: (bookkeepingErr as Error).message }, "dead-letter bookkeeping failed");
+    }
   });
 
   worker.on("error", (err) => {

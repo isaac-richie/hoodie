@@ -17,6 +17,7 @@ import {
   getBondingFeed,
   getRpcStats,
   getSession,
+  getTokenMarket,
   getTokenScan,
   getWalletRap,
   getWatchlist,
@@ -43,17 +44,39 @@ export function useTokenScan(address: string | undefined) {
   // again, then swaps the fresh result into the query cache.
   const rescan = useMutation({
     mutationFn: () => getTokenScan(normalized as `0x${string}`, true),
-    onSuccess: (result) => queryClient.setQueryData(key, result),
+    onSuccess: (result) => {
+      queryClient.setQueryData(key, result);
+      queryClient.invalidateQueries({ queryKey: ["token-market", normalized?.toLowerCase()] });
+    },
   });
 
   return { ...query, rescan };
+}
+
+// Market data is intentionally independent from the heavier scan report so
+// prices update on page refresh without rerunning every risk module.
+export function useTokenMarket(address: string | undefined) {
+  const normalized = address?.trim();
+  return useQuery({
+    queryKey: ["token-market", normalized?.toLowerCase()],
+    queryFn: () => getTokenMarket(normalized as `0x${string}`),
+    enabled: Boolean(normalized && isAddress(normalized)),
+    staleTime: 10_000,
+    refetchInterval: 20_000,
+    retry: 1,
+  });
 }
 
 export function usePulse() {
   return useQuery({
     queryKey: ["pulse"],
     queryFn: getPulse,
-    staleTime: 15_000,
+    // Board is called "Live Pulse" — earn it. Poll every 10s so freshly-scanned
+    // tokens appear without a page refresh. The discovery worker pushes 1–3
+    // new tokens/minute, so 10s catches every new row within one polling window.
+    staleTime: 10_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false, // pause when the tab is hidden
     retry: 1,
   });
 }

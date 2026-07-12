@@ -1,14 +1,13 @@
 /**
- * Bonding Feed — "about to bond" tokens across Robinhood Chain launchpads.
+ * Launchpad Feed — early lifecycle tokens across Robinhood Chain launchpads.
  *
- * Aggregates tokens that are climbing their bonding curve but haven't graduated
- * to a DEX yet, so users can catch them before the migration. Two sources:
+ * Aggregates the earliest useful state from two launchpads:
  *
- *   - NOXA Fun  — memecoins. Graduation target is 4.2 WETH of net buy.
- *                 Progress = netBuyAmountEth / 4.2. (exact, from their contract)
- *   - Virtuals  — AI agents. Prototypes with status UNDERGRAD, ranked by
- *                 mcapInVirtual (funding). No published exact ceiling, so we
- *                 rank by funding rather than fake a precise %.
+ *   - NOXA Fun  — memecoins launched directly into a locked Uniswap V3
+ *                 position. These are already live and scannable; NOXA does
+ *                 not expose a bonding-curve graduation phase to track.
+ *   - Virtuals  — AI agents. Pre-graduation agents with status UNDERGRAD are
+ *                 kept scan-locked until their token and liquidity exist.
  *
  * Both upstreams are undocumented public APIs, so every call is cached in Redis
  * (short TTL) and the whole feed degrades gracefully: if one source errors we
@@ -21,9 +20,16 @@ import { logger } from "../utils/logger.js";
 
 const NOXA_BASE = "https://awk00kk00gskkw0o8kc488kg.notoriouslywrong.com";
 const VIRTUALS_BASE = "https://api.virtuals.io/api/virtuals";
-const NOXA_BONDING_TARGET_ETH = 4.2; // WETH net-buy to graduate (from NOXA contract config)
 const CACHE_TTL_S = 45;
-const UPSTREAM_TIMEOUT_MS = 8_000;
+const LAST_GOOD_SOURCE_TTL_S = 10 * 60;
+// Virtuals returns rich project metadata for each row; allow it enough time to
+// respond while the local discovery worker is busy, without ever serving stale
+// rows from a previous launch window.
+const UPSTREAM_TIMEOUT_MS = 15_000;
+// This is a launch-discovery board, not a historical token directory. Keep a
+// full week of recent launches available without silently backfilling the old
+// bonded archive when a launchpad is quiet for a few hours.
+const NEW_LAUNCH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type BondingSource = "noxa" | "virtuals";
 
@@ -49,7 +55,7 @@ export interface BondingToken {
 
 export interface BondingFeed {
   tokens: BondingToken[];
-  sources: { noxa: "ok" | "error"; virtuals: "ok" | "error" };
+  sources: { noxa: "ok" | "stale" | "error"; virtuals: "ok" | "stale" | "error" };
   cachedAt: number;
 }
 
@@ -69,32 +75,23 @@ function ipfsToHttp(uri: string | null | undefined): string | null {
   return uri;
 }
 
+function isNewLaunch(createdAt: unknown): createdAt is string {
+  if (typeof createdAt !== "string") return false;
+  const createdMs = Date.parse(createdAt);
+  if (!Number.isFinite(createdMs)) return false;
+  const ageMs = Date.now() - createdMs;
+  return ageMs >= 0 && ageMs <= NEW_LAUNCH_WINDOW_MS;
+}
+
 async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
-  // Cover every genuinely-progressing curve — pull two overlapping pages so no
-  // near-bond token slips through: the "hot" band (peak ≥3 WETH, closest to
-  // the 4.2 target) plus the broader "climbing" band (peak ≥1 WETH, earlier
-  // curves that are still moving). Dedup by address; the higher-ath row wins.
-  // Sorting is by CURRENT netBuy client-side, so tokens ranked purely by peak
-  // don't push actively-climbing ones down.
-  const [hot, climbing] = await Promise.all([
-    fetchJson(`${NOXA_BASE}/v1/robinhood/tokens?sort=ath&order=asc&minAthNetBuyAmountEth=3&limit=100`),
-    fetchJson(`${NOXA_BASE}/v1/robinhood/tokens?sort=ath&order=asc&minAthNetBuyAmountEth=1&limit=100`),
-  ]) as [{ tokens?: any[] }, { tokens?: any[] }];
-  const seen = new Set<string>();
-  const rows: any[] = [];
-  for (const r of [...(hot.tokens ?? []), ...(climbing.tokens ?? [])]) {
-    const a = String(r.address ?? "").toLowerCase();
-    if (!a || seen.has(a)) continue;
-    seen.add(a);
-    rows.push(r);
-  }
+  // NOXA creates a token and its locked V3 position in the same launch flow.
+  // Its newest endpoint is the honest source for this board: fresh, live
+  // tokens rather than an invented "close to graduation" percentage.
+  const data = await fetchJson(`${NOXA_BASE}/v1/robinhood/tokens/newest?limit=100`) as { tokens?: any[] };
+  const rows = Array.isArray(data.tokens) ? data.tokens : [];
 
   return rows
     .map((t): BondingToken | null => {
-      const ath = Number(t.athNetBuyAmountEth ?? 0);
-      const net = Number(t.netBuyAmountEth ?? 0);
-      const graduated = ath >= NOXA_BONDING_TARGET_ETH;
-      const progressPct = graduated ? 100 : Math.min((net / NOXA_BONDING_TARGET_ETH) * 100, 100);
       const address = String(t.address ?? "").toLowerCase();
       if (!/^0x[a-f0-9]{40}$/.test(address)) return null;
       const mcapEth = Number(t.marketCapEth ?? 0);
@@ -106,8 +103,8 @@ async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
         symbol: t.symbol ?? "",
         deployer: typeof t.creator === "string" ? t.creator.toLowerCase() : null,
         logo: ipfsToHttp(t.logo),
-        progressPct: Math.round(progressPct * 10) / 10,
-        graduated,
+        progressPct: null,
+        graduated: false,
         marketCapUsd: ethUsd ? mcapEth * ethUsd : null,
         mcapInVirtual: null,
         volume24hUsd: ethUsd ? volEth * ethUsd : null,
@@ -119,21 +116,27 @@ async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
         scanAddress: address, // NOXA tokens are real ERC20s from block one — scannable now
       };
     })
-    .filter((t): t is BondingToken => t !== null);
+    .filter((t): t is BondingToken => t !== null && isNewLaunch(t.createdAt));
 }
 
 async function fetchVirtuals(): Promise<BondingToken[]> {
-  // Grab the top 100 undergrad prototypes ranked by funding (mcapInVirtual) —
-  // this gives us every genuinely close-to-bonding agent, not just 30. Anything
-  // beyond page 1 has near-zero funding and isn't launch-day relevant.
+  // The public Virtuals endpoint currently accepts filter parameters but can
+  // still return AVAILABLE (already-launched) agents. Fetch recent Robinhood
+  // rows, then enforce lifecycle status ourselves before ranking by funding.
+  // A single newest-first page covers the seven-day window and avoids timing out
+  // under the worker's normal RPC load. Lifecycle is enforced locally because
+  // this public endpoint can include AVAILABLE records despite filter params.
   const params = new URLSearchParams({
     "filters[chain]": "ROBINHOOD",
-    "filters[status]": "UNDERGRAD",
+    "pagination[page]": "1",
     "pagination[pageSize]": "100",
-    "sort[0]": "mcapInVirtual:desc",
+    "sort[0]": "createdAt:desc",
   });
-  const data = (await fetchJson(`${VIRTUALS_BASE}?${params.toString()}`)) as { data?: any[] };
-  const rows = Array.isArray(data.data) ? data.data : [];
+  const data = await fetchJson(`${VIRTUALS_BASE}?${params.toString()}`) as { data?: any[] };
+  const rows = (Array.isArray(data.data) ? data.data : [])
+    .filter((token) => token?.chain === "ROBINHOOD" && token?.status === "UNDERGRAD")
+    .filter((token) => isNewLaunch(token.createdAt))
+    .sort((a, b) => Number(b.mcapInVirtual ?? 0) - Number(a.mcapInVirtual ?? 0));
 
   return rows
     .map((t): BondingToken | null => {
@@ -157,7 +160,9 @@ async function fetchVirtuals(): Promise<BondingToken[]> {
         // platform, so it's the honest thing to show.
         marketCapUsd: null,
         mcapInVirtual: t.mcapInVirtual != null ? Number(t.mcapInVirtual) : null,
-        volume24hUsd: t.volume24h != null ? Number(t.volume24h) : null,
+        // The upstream does not document the denomination of this field. Do
+        // not present it as USD until it is contractually specified.
+        volume24hUsd: null,
         priceChange24hPct: t.priceChangePercent24h != null ? Number(t.priceChangePercent24h) : null,
         holderCount: t.holderCount != null ? Number(t.holderCount) : null,
         createdAt: t.createdAt ?? null,
@@ -167,7 +172,9 @@ async function fetchVirtuals(): Promise<BondingToken[]> {
         },
         // Prototype (pre-graduation) agents live at /prototypes/{preToken}
         launchpadUrl: `https://app.virtuals.io/prototypes/${pre}`,
-        scanAddress: typeof t.tokenAddress === "string" ? t.tokenAddress.toLowerCase() : null,
+        // A prototype has not graduated into the traded token/liquidity state
+        // that Hood's scan promise requires. Keep it locked until then.
+        scanAddress: null,
       };
     })
     .filter((t): t is BondingToken => t !== null);
@@ -192,7 +199,8 @@ async function getEthUsd(): Promise<number | null> {
 }
 
 export async function getBondingFeed(): Promise<BondingFeed> {
-  const cacheKey = "bonding:robinhood:v1";
+  const cacheKey = "bonding:robinhood:v3";
+  const virtualsLastGoodKey = "bonding:robinhood:virtuals:last-good";
   try {
     const cached = await redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -209,23 +217,39 @@ export async function getBondingFeed(): Promise<BondingFeed> {
     sources.noxa = "error";
     logger.warn({ err: noxaResult.reason?.message }, "bonding feed: NOXA source failed");
   }
-  if (virtualsResult.status === "fulfilled") tokens.push(...virtualsResult.value);
-  else {
-    sources.virtuals = "error";
-    logger.warn({ err: virtualsResult.reason?.message }, "bonding feed: Virtuals source failed");
+  if (virtualsResult.status === "fulfilled") {
+    tokens.push(...virtualsResult.value);
+    try {
+      await redis.setex(virtualsLastGoodKey, LAST_GOOD_SOURCE_TTL_S, JSON.stringify(virtualsResult.value));
+    } catch { /* best effort: the live response remains usable */ }
+  } else {
+    let lastGoodVirtuals: BondingToken[] = [];
+    try {
+      const cached = await redis.get(virtualsLastGoodKey);
+      const parsed = cached ? JSON.parse(cached) : [];
+      if (Array.isArray(parsed)) {
+        lastGoodVirtuals = parsed.filter((token): token is BondingToken =>
+          token?.source === "virtuals" && isNewLaunch(token.createdAt)
+        );
+      }
+    } catch { /* no fallback snapshot available */ }
+
+    if (lastGoodVirtuals.length > 0) {
+      tokens.push(...lastGoodVirtuals);
+      sources.virtuals = "stale";
+      logger.warn({ err: virtualsResult.reason?.message, tokens: lastGoodVirtuals.length }, "bonding feed: serving stale Virtuals snapshot");
+    } else {
+      sources.virtuals = "error";
+      logger.warn({ err: virtualsResult.reason?.message }, "bonding feed: Virtuals source failed");
+    }
   }
 
-  // Ranking, most-actionable first:
-  //   1. not-yet-graduated before graduated
-  //   2. tokens with a real progress % (NOXA) before funding-ranked (Virtuals)
-  //   3. higher progress first; ties broken by recency
-  // This keeps "about to bond" at the top and drops just-bonded ones to the tail.
+  // Virtuals rows are ordered by on-platform funding; NOXA rows are ordered by
+  // launch recency. Interleaving happens in the UI so each source stays visible.
   tokens.sort((a, b) => {
-    if (a.graduated !== b.graduated) return a.graduated ? 1 : -1;
-    const aHasPct = a.progressPct != null;
-    const bHasPct = b.progressPct != null;
-    if (aHasPct !== bHasPct) return aHasPct ? -1 : 1;
-    if (aHasPct && bHasPct && a.progressPct !== b.progressPct) return b.progressPct! - a.progressPct!;
+    if (a.source === "virtuals" && b.source === "virtuals") {
+      return (b.mcapInVirtual ?? 0) - (a.mcapInVirtual ?? 0);
+    }
     return Date.parse(b.createdAt ?? "0") - Date.parse(a.createdAt ?? "0");
   });
 
