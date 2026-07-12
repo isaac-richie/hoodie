@@ -17,9 +17,20 @@ export default function PulsePage() {
   const { data, isLoading, error } = useBondingFeed();
 
   const tokens = useMemo(() => {
-    const all = data?.tokens ?? [];
-    const live = all.filter((t) => !t.graduated);
-    return source === "all" ? live : live.filter((t) => t.source === source);
+    const live = (data?.tokens ?? []).filter((t) => !t.graduated);
+    if (source !== "all") return live.filter((t) => t.source === source);
+    // In the combined view the backend ranks all NOXA (which have an exact
+    // progress %) above all Virtuals (funding-ranked), which buried Virtuals
+    // ~80 cards down. Interleave the two source lists so both launchpads are
+    // visible from the first row.
+    const noxa = live.filter((t) => t.source === "noxa");
+    const virtuals = live.filter((t) => t.source === "virtuals");
+    const merged: BondingToken[] = [];
+    for (let i = 0; i < Math.max(noxa.length, virtuals.length); i++) {
+      if (i < noxa.length) merged.push(noxa[i]);
+      if (i < virtuals.length) merged.push(virtuals[i]);
+    }
+    return merged;
   }, [data, source]);
 
   const noxaDown = data?.sources.noxa === "error";
