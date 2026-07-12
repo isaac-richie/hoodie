@@ -102,7 +102,7 @@ async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
         holderCount: null, // NOXA list endpoint doesn't include holder count
         createdAt: t.createdAtTime ?? null,
         socials: { twitter: t.twitter || undefined, telegram: t.telegram || undefined, website: t.website || undefined },
-        launchpadUrl: `https://fun.noxa.fi/robinhood/token/${address}`,
+        launchpadUrl: `https://fun.noxa.fi/rh/token/${address}`, // canonical slug (/robinhood/ 301-redirects here)
         scanAddress: address, // NOXA tokens are real ERC20s from block one — scannable now
       };
     })
