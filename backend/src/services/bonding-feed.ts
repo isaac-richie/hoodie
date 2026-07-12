@@ -37,6 +37,7 @@ export interface BondingToken {
   progressPct: number | null;   // 0-100, null when the source has no exact target
   graduated: boolean;
   marketCapUsd: number | null;
+  mcapInVirtual?: number | null; // Virtuals-native funding metric ($VIRTUAL)
   volume24hUsd: number | null;
   priceChange24hPct: number | null;
   holderCount: number | null;
@@ -69,13 +70,24 @@ function ipfsToHttp(uri: string | null | undefined): string | null {
 }
 
 async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
-  // sort=ath ASC from a floor near the target surfaces tokens whose peak
-  // net-buy is climbing toward 4.2 but hasn't crossed it — i.e. about to bond.
-  // (order=desc returned only long-graduated tokens with huge ath.) The floor
-  // of 1.5 keeps the set to genuinely-progressing curves, not dead launches.
-  const url = `${NOXA_BASE}/v1/robinhood/tokens?sort=ath&order=asc&minAthNetBuyAmountEth=3&limit=80`;
-  const data = (await fetchJson(url)) as { tokens?: any[] };
-  const rows = Array.isArray(data.tokens) ? data.tokens : [];
+  // Cover every genuinely-progressing curve — pull two overlapping pages so no
+  // near-bond token slips through: the "hot" band (peak ≥3 WETH, closest to
+  // the 4.2 target) plus the broader "climbing" band (peak ≥1 WETH, earlier
+  // curves that are still moving). Dedup by address; the higher-ath row wins.
+  // Sorting is by CURRENT netBuy client-side, so tokens ranked purely by peak
+  // don't push actively-climbing ones down.
+  const [hot, climbing] = await Promise.all([
+    fetchJson(`${NOXA_BASE}/v1/robinhood/tokens?sort=ath&order=asc&minAthNetBuyAmountEth=3&limit=100`),
+    fetchJson(`${NOXA_BASE}/v1/robinhood/tokens?sort=ath&order=asc&minAthNetBuyAmountEth=1&limit=100`),
+  ]) as [{ tokens?: any[] }, { tokens?: any[] }];
+  const seen = new Set<string>();
+  const rows: any[] = [];
+  for (const r of [...(hot.tokens ?? []), ...(climbing.tokens ?? [])]) {
+    const a = String(r.address ?? "").toLowerCase();
+    if (!a || seen.has(a)) continue;
+    seen.add(a);
+    rows.push(r);
+  }
 
   return rows
     .map((t): BondingToken | null => {
@@ -97,6 +109,7 @@ async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
         progressPct: Math.round(progressPct * 10) / 10,
         graduated,
         marketCapUsd: ethUsd ? mcapEth * ethUsd : null,
+        mcapInVirtual: null,
         volume24hUsd: ethUsd ? volEth * ethUsd : null,
         priceChange24hPct: t.priceChange6hPct != null ? Number(t.priceChange6hPct) : null,
         holderCount: null, // NOXA list endpoint doesn't include holder count
@@ -110,10 +123,13 @@ async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
 }
 
 async function fetchVirtuals(): Promise<BondingToken[]> {
+  // Grab the top 100 undergrad prototypes ranked by funding (mcapInVirtual) —
+  // this gives us every genuinely close-to-bonding agent, not just 30. Anything
+  // beyond page 1 has near-zero funding and isn't launch-day relevant.
   const params = new URLSearchParams({
     "filters[chain]": "ROBINHOOD",
     "filters[status]": "UNDERGRAD",
-    "pagination[pageSize]": "30",
+    "pagination[pageSize]": "100",
     "sort[0]": "mcapInVirtual:desc",
   });
   const data = (await fetchJson(`${VIRTUALS_BASE}?${params.toString()}`)) as { data?: any[] };
@@ -135,7 +151,12 @@ async function fetchVirtuals(): Promise<BondingToken[]> {
         logo: ipfsToHttp(t.image?.url ?? t.image),
         progressPct: null, // no published exact graduation ceiling — rank by funding instead
         graduated: false,
-        marketCapUsd: null, // denominated in VIRTUAL, not USD — shown as VIRTUAL mcap client-side
+        // Virtuals denominates mcap in $VIRTUAL. Surface it as a native
+        // metric so the card can render "1.5M VIRTUAL" instead of a dash —
+        // it's what actually determines when the curve graduates on their
+        // platform, so it's the honest thing to show.
+        marketCapUsd: null,
+        mcapInVirtual: t.mcapInVirtual != null ? Number(t.mcapInVirtual) : null,
         volume24hUsd: t.volume24h != null ? Number(t.volume24h) : null,
         priceChange24hPct: t.priceChangePercent24h != null ? Number(t.priceChangePercent24h) : null,
         holderCount: t.holderCount != null ? Number(t.holderCount) : null,

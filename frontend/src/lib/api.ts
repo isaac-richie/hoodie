@@ -67,6 +67,7 @@ export interface BondingToken {
   progressPct: number | null;
   graduated: boolean;
   marketCapUsd: number | null;
+  mcapInVirtual?: number | null;
   volume24hUsd: number | null;
   priceChange24hPct: number | null;
   holderCount: number | null;
