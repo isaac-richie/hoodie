@@ -44,6 +44,14 @@ export interface ScanResult {
   timestamp: number;
 }
 
+export interface MarketSnapshot {
+  priceUsd: number | null;
+  marketCapUsd: number | null;
+  liquidityUsd: number | null;
+  liquidityEth: number | null;
+  timestamp: number;
+}
+
 export interface TokenSummary {
   address: string;
   name: string | null;
@@ -79,7 +87,7 @@ export interface BondingToken {
 
 export interface BondingFeed {
   tokens: BondingToken[];
-  sources: { noxa: "ok" | "error"; virtuals: "ok" | "error" };
+  sources: { noxa: "ok" | "stale" | "error"; virtuals: "ok" | "stale" | "error" };
   cachedAt: number;
 }
 
@@ -297,6 +305,10 @@ export function apiDelete<T>(path: string): Promise<T> {
 
 export function getTokenScan(address: string, fresh = false) {
   return apiGet<ScanResult>(`/v1/scan/${address}${fresh ? "?fresh=1" : ""}`);
+}
+
+export function getTokenMarket(address: string) {
+  return apiGet<MarketSnapshot>(`/v1/market/${address}`);
 }
 
 export function getPulse() {

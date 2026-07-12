@@ -42,7 +42,7 @@ const GUEST_ALLOWED_PREFIXES = [
   "/v1/scan/", "/v1/score/", "/v1/analyze", "/v1/stats",
   // Discovery surfaces are public read-only: the bonding board, the pulse list,
   // and token/deployer lookups power pages guests browse before connecting.
-  "/v1/bonding/", "/v1/pulse", "/v1/token/", "/v1/deployer", "/v1/source/",
+  "/v1/bonding/", "/v1/pulse", "/v1/token/", "/v1/market/", "/v1/deployer", "/v1/source/",
 ];
 
 function isGuestAllowed(path: string): boolean {

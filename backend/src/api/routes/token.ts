@@ -13,9 +13,36 @@ import { deployers, scanResults, tokens, wallets } from "../../db/schema.js";
 import { resolveTokenMeta } from "../../services/token-meta.js";
 import { getSourceVerification } from "../../services/explorer-source.js";
 import { getBondingFeed } from "../../services/bonding-feed.js";
+import { resolveMarketData } from "../../services/market-data.js";
 import { sendApiError } from "../errors.js";
 
 export async function tokenRoutes(app: FastifyInstance) {
+  // GET /v1/market/:address — cheap live quote for the report header. Scan
+  // findings intentionally have a longer cache; price, market cap, and LP
+  // liquidity do not, so a browser refresh never has to repeat every module.
+  app.get<{ Params: { address: string } }>("/v1/market/:address", async (req, reply) => {
+    const { address } = req.params;
+    if (!isAddress(address)) {
+      return sendApiError(reply, 422, "INVALID_ADDRESS", "invalid address");
+    }
+
+    try {
+      const meta = await resolveTokenMeta(address as `0x${string}`);
+      const market = await resolveMarketData({
+        tokenAddress: address as `0x${string}`,
+        lpInfo: meta.lpInfo,
+        totalSupply: meta.totalSupply,
+        decimals: meta.decimals,
+        fresh: true,
+      });
+      return reply.send({ ...market, timestamp: Date.now() });
+    } catch (err) {
+      return sendApiError(reply, 502, "UPSTREAM_ERROR", "live market data is temporarily unavailable", {
+        message: (err as Error).message,
+      });
+    }
+  });
+
   // GET /v1/bonding/robinhood — tokens climbing their bonding curve across
   // NOXA + Virtuals, cached and proxied so the browser never hits the
   // undocumented upstreams directly.

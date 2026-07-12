@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { isAddress } from "viem";
 import { ApiClientError, type ModuleResult, type ModuleStatus, type ScanResult } from "@/lib/api";
-import { useTokenScan } from "@/lib/queries";
+import { useTokenMarket, useTokenScan } from "@/lib/queries";
 import { useQuiverStore } from "@/stores/quiver";
 import { useScanHistoryStore } from "@/stores/scan-history";
 import { scoreToBand } from "@/types";
@@ -380,6 +380,12 @@ function ScanResultView({ result, onRescan, rescanning }: { result: ScanResult; 
   const addToQuiver = useQuiverStore((state) => state.add);
   const isInQuiver = useQuiverStore((state) => state.has(result.tokenAddress));
   const band = scoreToBand(result.score);
+  const liveMarket = useTokenMarket(result.tokenAddress);
+  const market = liveMarket.data;
+  const priceUsd = market?.priceUsd ?? result.priceUsd;
+  const marketCapUsd = market?.marketCapUsd ?? result.marketCapUsd;
+  const liquidityUsd = market?.liquidityUsd ?? result.liquidityUsd;
+  const liquidityEth = market?.liquidityEth ?? result.liquidityEth;
   // The LP pool address lives in the lp_lock module's evidence — used to make
   // the liquidity stat link straight to the pool on the explorer.
   const poolAddress = (() => {
@@ -482,29 +488,29 @@ function ScanResultView({ result, onRescan, rescanning }: { result: ScanResult; 
 
           <div style={{ fontSize: 13, lineHeight: "20px", color: "#B7D9C2" }}>{result.summary}</div>
 
-          {(result.priceUsd != null || result.marketCapUsd != null || result.liquidityUsd != null || result.liquidityEth != null) && (
+          {(priceUsd != null || marketCapUsd != null || liquidityUsd != null || liquidityEth != null) && (
             <div style={{ display: "flex", gap: 18, flexWrap: "wrap", borderTop: "1px solid #11331F", paddingTop: 12 }}>
-              {result.priceUsd != null && (
+              {priceUsd != null && (
                 <div>
                   <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>price</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#E6FBEA", marginTop: 3 }}>{formatUsd(result.priceUsd)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#E6FBEA", marginTop: 3 }}>{formatUsd(priceUsd)}</div>
                 </div>
               )}
-              {result.marketCapUsd != null && (
+              {marketCapUsd != null && (
                 <div>
                   <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>market cap</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#D4A937", marginTop: 3 }}>{formatUsd(result.marketCapUsd)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#D4A937", marginTop: 3 }}>{formatUsd(marketCapUsd)}</div>
                 </div>
               )}
-              {result.liquidityUsd != null ? (
+              {liquidityUsd != null ? (
                 <div>
                   <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>liquidity</div>
-                  <LiquidityValue text={formatUsd(result.liquidityUsd)} pool={poolAddress} />
+                  <LiquidityValue text={formatUsd(liquidityUsd)} pool={poolAddress} />
                 </div>
-              ) : result.liquidityEth != null ? (
+              ) : liquidityEth != null ? (
                 <div>
                   <div style={{ fontSize: 10, color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.06em" }}>liquidity</div>
-                  <LiquidityValue text={`Ξ ${result.liquidityEth.toFixed(2)}`} pool={poolAddress} />
+                  <LiquidityValue text={`Ξ ${liquidityEth.toFixed(2)}`} pool={poolAddress} />
                 </div>
               ) : null}
             </div>

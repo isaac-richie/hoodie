@@ -6,6 +6,8 @@ import { useBondingFeed } from "@/lib/queries";
 import type { BondingToken } from "@/lib/api";
 
 type SourceFilter = "all" | "noxa" | "virtuals";
+type ProgressTier = "all" | "almost" | "mid" | "climbing" | "new";
+const PAGE_SIZE = 12;
 
 const SOURCE_META: Record<
   BondingToken["source"],
@@ -27,69 +29,91 @@ const SOURCE_META: Record<
   },
 };
 
+const TIERS: { id: ProgressTier; label: string; emoji: string; accent: string; range: string; min: number; max: number }[] = [
+  { id: "almost",  label: "Almost bonded", emoji: "", accent: "#00C805", range: "75%+",   min: 75, max: 100 },
+  { id: "mid",     label: "Mid-curve",     emoji: "", accent: "#00C805", range: "50–74%", min: 50, max: 74  },
+  { id: "climbing",label: "Climbing",      emoji: "", accent: "#00C805", range: "25–49%", min: 25, max: 49  },
+  { id: "new",     label: "New launch",    emoji: "", accent: "#00C805", range: "<25%",   min: 0,  max: 24  },
+];
+
+function matchesTier(t: BondingToken, tier: ProgressTier): boolean {
+  if (tier === "all") return true;
+  const pct = t.progressPct ?? 0;
+  const def = TIERS.find((d) => d.id === tier)!;
+  return pct >= def.min && pct <= def.max;
+}
+
 export default function PulsePage() {
   const [source, setSource] = useState<SourceFilter>("all");
-  const [heatOnly, setHeatOnly] = useState(false);
+  const [progressTier, setProgressTier] = useState<ProgressTier>("all");
+  const [page, setPage] = useState(1);
   const { data, isLoading, error } = useBondingFeed();
 
   const tokens = useMemo(() => {
     const live = (data?.tokens ?? []).filter((t) => !t.graduated);
-    const filtered = source === "all" ? live : live.filter((t) => t.source === source);
-    const hot = heatOnly
-      ? filtered.filter((t) => (t.progressPct ?? 0) >= 40 || (t.source === "virtuals" && (t.holderCount ?? 0) >= 100))
-      : filtered;
-    if (source !== "all") return hot;
+    const bySource = source === "all" ? live : live.filter((t) => t.source === source);
+    const byTier = bySource.filter((t) => matchesTier(t, progressTier));
+    if (source !== "all") return byTier;
     // Interleave both sources so neither buries the other in the combined view.
-    const n = hot.filter((t) => t.source === "noxa");
-    const v = hot.filter((t) => t.source === "virtuals");
+    const n = byTier.filter((t) => t.source === "noxa");
+    const v = byTier.filter((t) => t.source === "virtuals");
     const merged: BondingToken[] = [];
     for (let i = 0; i < Math.max(n.length, v.length); i++) {
       if (i < n.length) merged.push(n[i]);
       if (i < v.length) merged.push(v[i]);
     }
     return merged;
-  }, [data, source, heatOnly]);
+  }, [data, source, progressTier]);
 
-  const noxaCount = (data?.tokens ?? []).filter((t) => !t.graduated && t.source === "noxa").length;
-  const virtCount = (data?.tokens ?? []).filter((t) => !t.graduated && t.source === "virtuals").length;
-  const noxaDown = data?.sources.noxa === "error";
+  const allLive = (data?.tokens ?? []).filter((t) => !t.graduated);
+  const noxaCount = allLive.filter((t) => t.source === "noxa").length;
+  const virtCount  = allLive.filter((t) => t.source === "virtuals").length;
+  const noxaDown     = data?.sources.noxa     === "error";
   const virtualsDown = data?.sources.virtuals === "error";
+  const noxaStale     = data?.sources.noxa     === "stale";
+  const virtualsStale = data?.sources.virtuals === "stale";
+  const pageCount  = Math.max(1, Math.ceil(tokens.length / PAGE_SIZE));
+  const activePage = Math.min(page, pageCount);
+  const pageTokens = tokens.slice((activePage - 1) * PAGE_SIZE, activePage * PAGE_SIZE);
+
+  function changeSource(next: SourceFilter) { setSource(next); setPage(1); }
+  function changeTier(next: ProgressTier)   { setProgressTier(next); setPage(1); }
+
+  // Tier counts for the active source filter
+  function tierCount(tier: ProgressTier) {
+    const base = source === "all" ? allLive : allLive.filter((t) => t.source === source);
+    return base.filter((t) => matchesTier(t, tier)).length;
+  }
 
   return (
     <div style={{ maxWidth: 1400, margin: "0 auto" }}>
       {/* Hero */}
-      <div style={{ marginBottom: 22, position: "relative" }}>
+      <div style={{ marginBottom: 20, position: "relative" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
           <span style={{ fontSize: 32, fontWeight: 800, color: "#E6FBEA", letterSpacing: "-0.02em" }}>Bounty Board</span>
           <span style={{ fontSize: 10, fontWeight: 700, color: "#D4A937", border: "1px solid #6b5111", background: "rgba(212,169,55,0.08)", padding: "3px 9px", borderRadius: 999, letterSpacing: "0.08em", textTransform: "uppercase" }}>Premium</span>
         </div>
         <div style={{ fontSize: 13, color: "#8FB39D", marginTop: 8, lineHeight: "20px", maxWidth: 680 }}>
-          Every token climbing a bonding curve across Robinhood Chain launchpads, ranked live. Scan any of them in Hood Terminal <em style={{ color: "#D4A937", fontStyle: "normal" }}>before</em> the launchpad — that's the edge.
+          Catch Virtuals agents and NOXA tokens before they graduate. Filter by how close each one is to bonding — then scan the ones you like.
         </div>
       </div>
 
-      {/* Controls: source pills + heat filter + status */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
-        <SourcePill active={source === "all"} onClick={() => setSource("all")} label="All launchpads" count={noxaCount + virtCount} />
-        <SourcePill active={source === "noxa"} onClick={() => setSource("noxa")} label="NOXA" count={noxaCount} color="#00C805" />
-        <SourcePill active={source === "virtuals"} onClick={() => setSource("virtuals")} label="Virtuals" count={virtCount} color="#8B7CF6" />
-        <div style={{ width: 1, height: 22, background: "#164A2A", marginInline: 4 }} />
-        <button
-          onClick={() => setHeatOnly((v) => !v)}
-          style={{
-            padding: "7px 13px", fontSize: 12, cursor: "pointer", borderRadius: 999, fontWeight: 700,
-            border: `1px solid ${heatOnly ? "#FF3B30" : "#164A2A"}`,
-            background: heatOnly ? "rgba(255,59,48,0.10)" : "transparent",
-            color: heatOnly ? "#FF3B30" : "#7FA68A",
-            display: "inline-flex", alignItems: "center", gap: 6,
-          }}
-          title="Show only tokens most likely to graduate soon"
-        >
-          <span style={{ fontSize: 13 }}>🔥</span> Heat
-        </button>
+      {/* Row 1: source pills */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <SourcePill active={source === "all"}      onClick={() => changeSource("all")}      label="All launchpads" count={noxaCount + virtCount} />
+        <SourcePill active={source === "noxa"}     onClick={() => changeSource("noxa")}     label="NOXA"     count={noxaCount} color="#00C805" />
+        <SourcePill active={source === "virtuals"} onClick={() => changeSource("virtuals")} label="Virtuals" count={virtCount}  color="#8B7CF6" />
         <span style={{ marginLeft: "auto", fontSize: 11, color: "#496552", fontFamily: "var(--font-mono, monospace)" }}>
-          {tokens.length} shown · refreshes 45s
+          {tokens.length} tokens · refreshes 45s
         </span>
+      </div>
+
+      {/* Row 2: progress tier pills */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+        <TierPill id="all" active={progressTier === "all"} onClick={() => changeTier("all")} count={tierCount("all")} />
+        {TIERS.map((tier) => (
+          <TierPill key={tier.id} id={tier.id} active={progressTier === tier.id} onClick={() => changeTier(tier.id)} count={tierCount(tier.id)} />
+        ))}
       </div>
 
       {(noxaDown || virtualsDown) && (
@@ -97,14 +121,31 @@ export default function PulsePage() {
           {noxaDown && virtualsDown ? "Both launchpad feeds are temporarily unavailable." : `${noxaDown ? "NOXA" : "Virtuals"} feed is temporarily unavailable — showing the other source.`}
         </div>
       )}
+      {(noxaStale || virtualsStale) && (
+        <div style={{ background: "rgba(255,176,32,0.08)", border: "1px solid #6b4d11", padding: "10px 14px", fontSize: 12, color: "#FFB020", marginBottom: 14, borderRadius: 6 }}>
+          {`${noxaStale ? "NOXA" : "Virtuals"} is temporarily stale — showing the most recent verified launchpad snapshot while it reconnects.`}
+        </div>
+      )}
 
       {isLoading && <SkeletonGrid />}
       {error && <Message text="bonding feed unavailable — the backend could not reach the launchpads." tone="#FFB020" />}
-      {!isLoading && !error && tokens.length === 0 && <Message text="no tokens match this filter right now — try turning off Heat or switching launchpads." />}
+      {!isLoading && !error && tokens.length === 0 && (
+        <Message text={progressTier !== "all"
+          ? `No tokens in the "${TIERS.find((t) => t.id === progressTier)?.label}" tier right now — try a different range.`
+          : "no tokens match this filter right now — try switching launchpads."} />
+      )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(322px, 1fr))", gap: 14 }}>
-        {tokens.map((t) => <PremiumCard key={`${t.source}-${t.address}`} token={t} />)}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(322px, 100%), 1fr))", gap: 14 }}>
+        {pageTokens.map((t) => <PremiumCard key={`${t.source}-${t.address}`} token={t} />)}
       </div>
+      {!isLoading && !error && tokens.length > 0 && (
+        <Pagination
+          page={activePage}
+          pageCount={pageCount}
+          onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+          onNext={() => setPage((current) => Math.min(pageCount, current + 1))}
+        />
+      )}
     </div>
   );
 }
@@ -132,14 +173,51 @@ function SourcePill({ active, onClick, label, count, color }: { active: boolean;
   );
 }
 
+/* ── Progress tier pill ─────────────────────────────────────────────── */
+
+function TierPill({ id, active, onClick, count }: { id: ProgressTier; active: boolean; onClick: () => void; count: number }) {
+  if (id === "all") {
+    return (
+      <button
+        onClick={onClick}
+        style={{
+          padding: "6px 13px", fontSize: 11, cursor: "pointer", borderRadius: 999, fontWeight: 700,
+          border: `1px solid ${active ? "#00C805" : "#164A2A"}`,
+          background: active ? "rgba(0,200,5,0.08)" : "transparent",
+          color: active ? "#E6FBEA" : "#7FA68A",
+          display: "inline-flex", alignItems: "center", gap: 6,
+        }}
+      >
+        All progress
+        <span style={{ fontSize: 10, color: active ? "#00C805" : "#496552", fontFamily: "var(--font-mono, monospace)" }}>{count}</span>
+      </button>
+    );
+  }
+  const tier = TIERS.find((t) => t.id === id)!;
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "6px 13px", fontSize: 11, cursor: "pointer", borderRadius: 999, fontWeight: 700,
+        border: `1px solid ${active ? "#00C805" : "#164A2A"}`,
+        background: active ? "rgba(0,200,5,0.08)" : "transparent",
+        color: active ? "#E6FBEA" : "#7FA68A",
+        display: "inline-flex", alignItems: "center", gap: 6,
+        transition: "all 0.15s ease",
+      }}
+    >
+      {tier.label}
+      <span style={{ fontSize: 9, color: active ? "#7FA68A" : "#496552", fontFamily: "var(--font-mono, monospace)" }}>{tier.range}</span>
+      <span style={{ fontSize: 10, color: active ? "#00C805" : "#496552", fontFamily: "var(--font-mono, monospace)" }}>{count}</span>
+    </button>
+  );
+}
+
 /* ── Premium bonding card ───────────────────────────────────────────── */
 
 function PremiumCard({ token }: { token: BondingToken }) {
   const meta = SOURCE_META[token.source];
   const pct = token.progressPct;
-  // Heat tier drives the accent — the closer to bonding, the hotter the ring.
-  const hot = pct != null && pct >= 60;
-  const warm = pct != null && pct >= 30;
   const scanHref = token.scanAddress ? `/scan/${token.scanAddress}` : null;
   const changeVal = token.priceChange24hPct;
 
@@ -148,26 +226,18 @@ function PremiumCard({ token }: { token: BondingToken }) {
       style={{
         position: "relative",
         background: "#06140B",
-        border: `1px solid ${hot ? "#3a1f11" : "#164A2A"}`,
+        border: "1px solid #164A2A",
         borderRadius: 14,
         padding: 16,
-        display: "flex", flexDirection: "column", gap: 12,
-        boxShadow: hot ? `0 0 0 1px rgba(255,59,48,0.15), 0 8px 24px rgba(0,0,0,0.4)` : "0 4px 12px rgba(0,0,0,0.25)",
+        display: "flex", flexDirection: "column", gap: 10,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
         overflow: "hidden",
       }}
     >
-      {/* subtle source-tinted top gradient */}
+      {/* source-tinted top gradient */}
       <span aria-hidden style={{ position: "absolute", inset: 0, background: meta.tint, pointerEvents: "none" }} />
-      {/* heat badge */}
-      {hot && (
-        <span style={{
-          position: "absolute", top: 10, right: 10, zIndex: 2,
-          fontSize: 9, fontWeight: 800, color: "#FF3B30", background: "rgba(255,59,48,0.12)",
-          border: "1px solid #6b1f18", padding: "2px 7px", borderRadius: 999, letterSpacing: "0.08em",
-        }}>🔥 HOT</span>
-      )}
 
-      {/* header: logo + name/symbol clickable → launchpad */}
+      {/* header: logo + name clickable → launchpad */}
       <a
         href={meta.url(token)}
         target="_blank"
@@ -183,20 +253,35 @@ function PremiumCard({ token }: { token: BondingToken }) {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
             <span style={{ fontSize: 11, color: "#8FB39D", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{token.name || "—"}</span>
-            <span style={{ fontSize: 9, fontWeight: 700, color: meta.ring, border: `1px solid ${meta.ring}`, borderRadius: 999, padding: "1px 6px", flexShrink: 0, letterSpacing: "0.04em" }}>{meta.label}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: meta.ring, border: `1px solid ${meta.ring}22`, borderRadius: 999, padding: "1px 6px", flexShrink: 0, letterSpacing: "0.04em" }}>{meta.label}</span>
           </div>
         </div>
       </a>
 
-      {/* progress meter */}
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          <span style={{ color: "#5E7D6A" }}>bonding progress</span>
-          <span style={{ color: pct != null ? (hot ? "#FF3B30" : warm ? "#D4A937" : "#00C805") : "#8B7CF6", fontWeight: 800, fontFamily: "var(--font-mono, monospace)", letterSpacing: 0 }}>
-            {pct != null ? `${pct.toFixed(1)}%` : "climbing"}
+      {/* progress section */}
+      <div style={{ position: "relative", zIndex: 1, background: "rgba(0,0,0,0.14)", border: "1px solid #0E2B19", borderRadius: 8, padding: "10px 12px" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 7 }}>
+          <div>
+            <div style={{ fontSize: 9, color: "#496552", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 2 }}>
+              {token.source === "noxa" ? "bonding progress" : "graduation rank"}
+            </div>
+            <span style={{
+              fontSize: 26, fontWeight: 900, lineHeight: 1,
+              fontFamily: "var(--font-mono, monospace)", letterSpacing: "-0.04em",
+              color: "#E6FBEA",
+            }}>
+              {pct != null ? `${Math.round(pct)}%` : token.source === "noxa" ? "live" : "—"}
+            </span>
+          </div>
+          <span style={{ fontSize: 10, color: "#496552", fontFamily: "var(--font-mono, monospace)", paddingBottom: 2 }}>
+            {token.source === "noxa" && pct != null
+              ? `${((pct / 100) * 4.2).toFixed(2)} / 4.2 ETH`
+              : token.mcapInVirtual != null
+                ? `${fmtCompact(token.mcapInVirtual)} VIRT`
+                : ""}
           </span>
         </div>
-        <ProgressBar pct={pct} hot={hot} warm={warm} source={token.source} />
+        <ProgressBar pct={pct} source={token.source} ring={meta.ring} />
       </div>
 
       {/* metrics row */}
@@ -206,7 +291,7 @@ function PremiumCard({ token }: { token: BondingToken }) {
         <Stat label="24h" value={fmtPct(changeVal)} color={changeColor(changeVal)} />
       </div>
 
-      {/* deployer + secondary metric */}
+      {/* deployer + holder/age */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10, borderTop: "1px solid #11331F", paddingTop: 10, position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ color: "#5E7D6A", textTransform: "uppercase", letterSpacing: "0.08em" }}>deployer</span>
@@ -223,7 +308,7 @@ function PremiumCard({ token }: { token: BondingToken }) {
         </span>
       </div>
 
-      {/* primary CTA: SCAN → premium button; secondary: launchpad */}
+      {/* CTAs */}
       <div style={{ display: "grid", gridTemplateColumns: scanHref ? "1fr auto" : "1fr", gap: 8, position: "relative", zIndex: 1, marginTop: 2 }}>
         {scanHref ? (
           <Link
@@ -241,7 +326,7 @@ function PremiumCard({ token }: { token: BondingToken }) {
           </Link>
         ) : (
           <span
-            title="Pre-graduation Virtuals agents have no tradable ERC20 yet — the scan unlocks the moment they graduate."
+            title="Scan will unlock once this token graduates"
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
               background: "rgba(139,124,246,0.08)", border: "1px solid #2f2755",
@@ -273,26 +358,30 @@ function PremiumCard({ token }: { token: BondingToken }) {
   );
 }
 
-/* ── Progress bar with ticks + tint by heat ─────────────────────────── */
+/* ── Progress bar ───────────────────────────────────────────────────── */
 
-function ProgressBar({ pct, hot, warm, source }: { pct: number | null; hot: boolean; warm: boolean; source: BondingToken["source"] }) {
-  const w = pct != null ? Math.min(100, Math.max(2, pct)) : 12;
-  const barColor = pct == null
-    ? "linear-gradient(90deg,#4c4283,#8B7CF6)"
-    : hot
-      ? "linear-gradient(90deg,#7d0f08,#FF3B30)"
-      : warm
-        ? "linear-gradient(90deg,#6b4d11,#D4A937)"
-        : "linear-gradient(90deg,#0A7D2C,#00C805)";
+function ProgressBar({ pct, source, ring }: { pct: number | null; source: BondingToken["source"]; ring: string }) {
+  const w = pct != null ? Math.min(100, Math.max(2, pct)) : 10;
+  // Single accent colour per source — no tier rainbow
+  const dim = source === "virtuals" ? "#2a1f55" : "#0A3A1A";
+  const bright = ring;
+
   return (
-    <div style={{ position: "relative", height: 8, background: "#0A1F12", border: "1px solid #11331F", borderRadius: 4, overflow: "hidden" }}>
-      {/* tick marks at 25/50/75 */}
+    <div style={{ position: "relative", height: 10, background: "#0A1F12", border: "1px solid #0E2B19", borderRadius: 5, overflow: "hidden" }}>
       {[25, 50, 75].map((t) => (
-        <span key={t} aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: `${t}%`, width: 1, background: "rgba(127,166,138,0.15)" }} />
+        <span key={t} aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: `${t}%`, width: 1, background: "rgba(127,166,138,0.12)", zIndex: 1 }} />
       ))}
-      <div style={{ width: `${w}%`, height: "100%", background: barColor, transition: "width 0.4s ease", boxShadow: pct != null && pct > 50 ? "0 0 12px rgba(255,255,255,0.08)" : "none" }} />
+      <div style={{
+        width: `${w}%`, height: "100%",
+        background: `linear-gradient(90deg, ${dim}, ${bright})`,
+        transition: "width 0.4s ease",
+      }} />
       {pct == null && (
-        <div aria-hidden style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, transparent, ${source === "virtuals" ? "rgba(139,124,246,0.35)" : "rgba(0,200,5,0.35)"}, transparent)`, animation: "hoodShimmer 2.2s linear infinite" }} />
+        <div aria-hidden style={{
+          position: "absolute", inset: 0,
+          background: `linear-gradient(90deg, transparent, ${ring}30, transparent)`,
+          animation: "hoodShimmer 2.2s linear infinite",
+        }} />
       )}
       <style>{`@keyframes hoodShimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }`}</style>
     </div>
@@ -328,13 +417,13 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
   );
 }
 
-/* ── Skeleton (loading state) ───────────────────────────────────────── */
+/* ── Skeleton ───────────────────────────────────────────────────────── */
 
 function SkeletonGrid() {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(322px, 1fr))", gap: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(322px, 100%), 1fr))", gap: 14 }}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} style={{ background: "#06140B", border: "1px solid #164A2A", borderRadius: 14, padding: 16, height: 232, overflow: "hidden", position: "relative" }}>
+        <div key={i} style={{ background: "#06140B", border: "1px solid #164A2A", borderRadius: 14, padding: 16, height: 270, overflow: "hidden", position: "relative" }}>
           <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(127,166,138,0.05), transparent)", animation: "hoodShimmer 1.6s linear infinite" }} />
           <style>{`@keyframes hoodShimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }`}</style>
         </div>
@@ -345,6 +434,21 @@ function SkeletonGrid() {
 
 function Message({ text, tone = "#7FA68A" }: { text: string; tone?: string }) {
   return <div style={{ padding: "20px 16px", color: tone, background: "#06140B", border: "1px solid #164A2A", borderRadius: 10, fontSize: 13, marginBottom: 12, textAlign: "center" }}>{text}</div>;
+}
+
+function Pagination({ page, pageCount, onPrevious, onNext }: { page: number; pageCount: number; onPrevious: () => void; onNext: () => void }) {
+  const buttonStyle = (disabled: boolean): React.CSSProperties => ({
+    minWidth: 92, padding: "9px 13px", borderRadius: 7, fontSize: 12, fontWeight: 700,
+    cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.42 : 1,
+    background: "#06140B", border: "1px solid #164A2A", color: "#B7D9C2",
+  });
+  return (
+    <nav aria-label="Launchpad pages" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 20 }}>
+      <button type="button" onClick={onPrevious} disabled={page === 1} style={buttonStyle(page === 1)}>← Previous</button>
+      <span style={{ minWidth: 80, textAlign: "center", color: "#7FA68A", fontSize: 11, fontFamily: "var(--font-mono, monospace)" }}>Page {page} / {pageCount}</span>
+      <button type="button" onClick={onNext} disabled={page === pageCount} style={buttonStyle(page === pageCount)}>Next →</button>
+    </nav>
+  );
 }
 
 /* ── Icons ─────────────────────────────────────────────────────────── */
@@ -368,7 +472,7 @@ function ExternalArrow({ color }: { color: string }) {
 /* ── Formatters ─────────────────────────────────────────────────────── */
 
 function mcapText(t: BondingToken): string {
-  if (t.marketCapUsd != null) return fmtUsd(t.marketCapUsd);
+  if (t.marketCapUsd  != null) return fmtUsd(t.marketCapUsd);
   if (t.mcapInVirtual != null) return `${fmtCompact(t.mcapInVirtual)} VIRT`;
   return "—";
 }

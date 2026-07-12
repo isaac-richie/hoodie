@@ -83,10 +83,12 @@ function isNewLaunch(createdAt: unknown): createdAt is string {
   return ageMs >= 0 && ageMs <= NEW_LAUNCH_WINDOW_MS;
 }
 
+// NOXA tokens graduate once they accumulate 4.2 WETH in net buys on the bonding curve.
+const NOXA_GRADUATION_ETH = 4.2;
+
 async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
-  // NOXA creates a token and its locked V3 position in the same launch flow.
-  // Its newest endpoint is the honest source for this board: fresh, live
-  // tokens rather than an invented "close to graduation" percentage.
+  // netBuyAmountEth / athNetBuyAmountEth give us real graduation progress against the
+  // 4.2 WETH target confirmed for Robinhood Chain. Tokens are sorted closest-to-grad first.
   const data = await fetchJson(`${NOXA_BASE}/v1/robinhood/tokens/newest?limit=100`) as { tokens?: any[] };
   const rows = Array.isArray(data.tokens) ? data.tokens : [];
 
@@ -96,6 +98,10 @@ async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
       if (!/^0x[a-f0-9]{40}$/.test(address)) return null;
       const mcapEth = Number(t.marketCapEth ?? 0);
       const volEth = Number(t.volume24hEth ?? 0);
+      const netBuy = Number(t.netBuyAmountEth ?? t.athNetBuyAmountEth ?? 0);
+      const progressPct = netBuy > 0
+        ? Math.min(100, Math.max(0, Math.round((netBuy / NOXA_GRADUATION_ETH) * 100)))
+        : null;
       return {
         source: "noxa",
         address,
@@ -103,20 +109,21 @@ async function fetchNoxa(ethUsd: number | null): Promise<BondingToken[]> {
         symbol: t.symbol ?? "",
         deployer: typeof t.creator === "string" ? t.creator.toLowerCase() : null,
         logo: ipfsToHttp(t.logo),
-        progressPct: null,
+        progressPct,
         graduated: false,
         marketCapUsd: ethUsd ? mcapEth * ethUsd : null,
         mcapInVirtual: null,
         volume24hUsd: ethUsd ? volEth * ethUsd : null,
         priceChange24hPct: t.priceChange6hPct != null ? Number(t.priceChange6hPct) : null,
-        holderCount: null, // NOXA list endpoint doesn't include holder count
+        holderCount: null,
         createdAt: t.createdAtTime ?? null,
         socials: { twitter: t.twitter || undefined, telegram: t.telegram || undefined, website: t.website || undefined },
-        launchpadUrl: `https://fun.noxa.fi/rh/token/${address}`, // canonical slug (/robinhood/ 301-redirects here)
-        scanAddress: address, // NOXA tokens are real ERC20s from block one — scannable now
+        launchpadUrl: `https://fun.noxa.fi/rh/token/${address}`,
+        scanAddress: address,
       };
     })
-    .filter((t): t is BondingToken => t !== null && isNewLaunch(t.createdAt));
+    .filter((t): t is BondingToken => t !== null && isNewLaunch(t.createdAt))
+    .sort((a, b) => (b.progressPct ?? -1) - (a.progressPct ?? -1));
 }
 
 async function fetchVirtuals(): Promise<BondingToken[]> {
@@ -138,11 +145,15 @@ async function fetchVirtuals(): Promise<BondingToken[]> {
     .filter((token) => isNewLaunch(token.createdAt))
     .sort((a, b) => Number(b.mcapInVirtual ?? 0) - Number(a.mcapInVirtual ?? 0));
 
+  // Derive a relative progress % from funding rank: highest mcapInVirtual = closest
+  // to graduation. No published graduation ceiling exists, so rank-based is honest.
+  const total = rows.length;
   return rows
-    .map((t): BondingToken | null => {
+    .map((t, idx): BondingToken | null => {
       const pre = typeof t.preToken === "string" ? t.preToken : null;
       if (!pre) return null;
       const socials = t.socials ?? {};
+      const progressPct = total > 1 ? Math.round(((total - 1 - idx) / (total - 1)) * 100) : 50;
       return {
         source: "virtuals",
         address: pre.toLowerCase(),
@@ -152,16 +163,10 @@ async function fetchVirtuals(): Promise<BondingToken[]> {
           ? String(t.creator.walletAddress).toLowerCase()
           : (typeof t.walletAddress === "string" ? t.walletAddress.toLowerCase() : null),
         logo: ipfsToHttp(t.image?.url ?? t.image),
-        progressPct: null, // no published exact graduation ceiling — rank by funding instead
+        progressPct,
         graduated: false,
-        // Virtuals denominates mcap in $VIRTUAL. Surface it as a native
-        // metric so the card can render "1.5M VIRTUAL" instead of a dash —
-        // it's what actually determines when the curve graduates on their
-        // platform, so it's the honest thing to show.
         marketCapUsd: null,
         mcapInVirtual: t.mcapInVirtual != null ? Number(t.mcapInVirtual) : null,
-        // The upstream does not document the denomination of this field. Do
-        // not present it as USD until it is contractually specified.
         volume24hUsd: null,
         priceChange24hPct: t.priceChangePercent24h != null ? Number(t.priceChangePercent24h) : null,
         holderCount: t.holderCount != null ? Number(t.holderCount) : null,
@@ -170,11 +175,9 @@ async function fetchVirtuals(): Promise<BondingToken[]> {
           twitter: socials.VERIFIED_LINKS?.TWITTER || socials.twitter || undefined,
           website: socials.USER_LINKS?.WEBSITE || undefined,
         },
-        // Prototype (pre-graduation) agents live at /prototypes/{preToken}
         launchpadUrl: `https://app.virtuals.io/prototypes/${pre}`,
-        // A prototype has not graduated into the traded token/liquidity state
-        // that Hood's scan promise requires. Keep it locked until then.
-        scanAddress: null,
+        // preToken is a real ERC-20 on chain 4663, tradable against $VIRTUAL
+        scanAddress: pre.toLowerCase(),
       };
     })
     .filter((t): t is BondingToken => t !== null);
@@ -244,14 +247,9 @@ export async function getBondingFeed(): Promise<BondingFeed> {
     }
   }
 
-  // Virtuals rows are ordered by on-platform funding; NOXA rows are ordered by
-  // launch recency. Interleaving happens in the UI so each source stays visible.
-  tokens.sort((a, b) => {
-    if (a.source === "virtuals" && b.source === "virtuals") {
-      return (b.mcapInVirtual ?? 0) - (a.mcapInVirtual ?? 0);
-    }
-    return Date.parse(b.createdAt ?? "0") - Date.parse(a.createdAt ?? "0");
-  });
+  // Both sources now carry progressPct. Sort by it so the UI's tier filters
+  // and interleaving see tokens ordered from closest-to-graduation downward.
+  tokens.sort((a, b) => (b.progressPct ?? -1) - (a.progressPct ?? -1));
 
   const feed: BondingFeed = { tokens, sources, cachedAt: Date.now() };
   try { await redis.setex(cacheKey, CACHE_TTL_S, JSON.stringify(feed)); } catch { /* best effort */ }

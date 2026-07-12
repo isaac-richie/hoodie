@@ -70,8 +70,9 @@ export async function resolveMarketData(params: {
   lpInfo?: LpPoolInfo | null;
   totalSupply?: bigint;
   decimals?: number;
+  fresh?: boolean;
 }): Promise<MarketData> {
-  const { tokenAddress, lpInfo, totalSupply, decimals } = params;
+  const { tokenAddress, lpInfo, totalSupply, decimals, fresh = false } = params;
 
   try {
     if (!lpInfo?.poolAddress) return EMPTY;
@@ -85,9 +86,9 @@ export async function resolveMarketData(params: {
     let priceEth: number | null = null;
 
     if (lpInfo.kind === "dex_v2") {
-      priceEth = await v2PriceEth(lpInfo, tokenAddress, tokenDecimals);
+      priceEth = await v2PriceEth(lpInfo, tokenAddress, tokenDecimals, fresh);
     } else if (lpInfo.kind === "dex_v3" || lpInfo.kind === "launchpad_v3_locked") {
-      priceEth = await v3PriceEth(lpInfo, tokenAddress, tokenDecimals);
+      priceEth = await v3PriceEth(lpInfo, tokenAddress, tokenDecimals, fresh);
     }
     // launchpad_curve: no AMM pool to read a spot price from — stay null.
 
@@ -100,6 +101,7 @@ export async function resolveMarketData(params: {
       functionName: "balanceOf",
       args: [lpInfo.poolAddress],
       ttlMs: 30_000,
+      bypassCache: fresh,
     }) as bigint;
     const liquidityEth = (Number(wethBalance) / 1e18) * 2;
 
@@ -120,12 +122,18 @@ export async function resolveMarketData(params: {
   }
 }
 
-async function v2PriceEth(lpInfo: LpPoolInfo, tokenAddress: Address, tokenDecimals: number): Promise<number | null> {
+async function v2PriceEth(
+  lpInfo: LpPoolInfo,
+  tokenAddress: Address,
+  tokenDecimals: number,
+  fresh: boolean
+): Promise<number | null> {
   const reserves = await cachedRpc.readContract({
     address: lpInfo.poolAddress,
     abi: V2_PAIR_ABI,
     functionName: "getReserves",
     ttlMs: 30_000,
+    bypassCache: fresh,
   }) as [bigint, bigint, number];
 
   const tokenIsToken0 = lpInfo.token0.toLowerCase() === tokenAddress.toLowerCase();
@@ -136,12 +144,18 @@ async function v2PriceEth(lpInfo: LpPoolInfo, tokenAddress: Address, tokenDecima
   return (Number(wethReserve) / 1e18) / (Number(tokenReserve) / 10 ** tokenDecimals);
 }
 
-async function v3PriceEth(lpInfo: LpPoolInfo, tokenAddress: Address, tokenDecimals: number): Promise<number | null> {
+async function v3PriceEth(
+  lpInfo: LpPoolInfo,
+  tokenAddress: Address,
+  tokenDecimals: number,
+  fresh: boolean
+): Promise<number | null> {
   const slot0 = await cachedRpc.readContract({
     address: lpInfo.poolAddress,
     abi: V3_SLOT0_ABI,
     functionName: "slot0",
     ttlMs: 30_000,
+    bypassCache: fresh,
   }) as readonly [bigint, number, number, number, number, number, boolean];
 
   const sqrtPriceX96 = Number(slot0[0]);

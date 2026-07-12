@@ -309,6 +309,9 @@ export const cachedRpc = {
     functionName: string;
     args?: readonly unknown[];
     ttlMs?: number;
+    // Live quote reads can bypass stale cache entries while still warming the
+    // cache with the latest value for normal scanner traffic.
+    bypassCache?: boolean;
   }): Promise<unknown> {
     // bigIntReplacer: plain JSON.stringify throws on BigInt args (e.g. NFT
     // tokenIds), which silently killed every read that used them.
@@ -316,20 +319,22 @@ export const cachedRpc = {
     const key = `read:${params.address.toLowerCase()}:${params.functionName}:${argsKey}`;
     const ttl = params.ttlMs ?? 30_000;
 
-    // Memory cache
-    const memCached = storageCache.get(key);
-    if (memCached !== undefined) {
-      rpcCacheHits++;
-      return memCached;
-    }
+    if (!params.bypassCache) {
+      // Memory cache
+      const memCached = storageCache.get(key);
+      if (memCached !== undefined) {
+        rpcCacheHits++;
+        return memCached;
+      }
 
-    // Redis cache
-    const redisCached = await redisGetSafe(key);
-    if (redisCached) {
-      rpcCacheHits++;
-      const parsed = JSON.parse(redisCached, bigIntReviver);
-      storageCache.set(key, parsed, ttl);
-      return parsed;
+      // Redis cache
+      const redisCached = await redisGetSafe(key);
+      if (redisCached) {
+        rpcCacheHits++;
+        const parsed = JSON.parse(redisCached, bigIntReviver);
+        storageCache.set(key, parsed, ttl);
+        return parsed;
+      }
     }
 
     const result = await coalesce(key, async () => {
