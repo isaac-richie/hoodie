@@ -38,7 +38,12 @@ const PUBLIC_ROUTES = new Set([
 // quotas). Without this, production — where REQUIRE_AUTH is mandatory — would
 // 401 every visitor before they could run a single scan. Everything else
 // (alerts, API keys, watchlist) still requires a session or API key.
-const GUEST_ALLOWED_PREFIXES = ["/v1/scan/", "/v1/score/", "/v1/analyze", "/v1/stats"];
+const GUEST_ALLOWED_PREFIXES = [
+  "/v1/scan/", "/v1/score/", "/v1/analyze", "/v1/stats",
+  // Discovery surfaces are public read-only: the bonding board, the pulse list,
+  // and token/deployer lookups power pages guests browse before connecting.
+  "/v1/bonding/", "/v1/pulse", "/v1/token/", "/v1/deployer", "/v1/source/",
+];
 
 function isGuestAllowed(path: string): boolean {
   return GUEST_ALLOWED_PREFIXES.some((prefix) => path === prefix.replace(/\/$/, "") || path.startsWith(prefix));

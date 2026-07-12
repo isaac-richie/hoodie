@@ -12,9 +12,29 @@ import { db } from "../../db/client.js";
 import { deployers, scanResults, tokens, wallets } from "../../db/schema.js";
 import { resolveTokenMeta } from "../../services/token-meta.js";
 import { getSourceVerification } from "../../services/explorer-source.js";
+import { getBondingFeed } from "../../services/bonding-feed.js";
 import { sendApiError } from "../errors.js";
 
 export async function tokenRoutes(app: FastifyInstance) {
+  // GET /v1/bonding/robinhood — tokens climbing their bonding curve across
+  // NOXA + Virtuals, cached and proxied so the browser never hits the
+  // undocumented upstreams directly.
+  app.get("/v1/bonding/robinhood", async (_req, reply) => {
+    try {
+      const feed = await getBondingFeed();
+      return reply.send(feed);
+    } catch (err) {
+      // The feed already degrades internally; this only fires on an unexpected
+      // error. Return an empty feed rather than a 500 so the page stays usable.
+      return reply.send({
+        tokens: [],
+        sources: { noxa: "error", virtuals: "error" },
+        cachedAt: Date.now(),
+        note: (err as Error).message,
+      });
+    }
+  });
+
   app.get("/v1/pulse", async () => {
     const rows = await db
       .select({

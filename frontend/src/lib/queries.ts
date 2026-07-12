@@ -14,6 +14,7 @@ import {
   getDeployer,
   getDeployers,
   getPulse,
+  getBondingFeed,
   getRpcStats,
   getSession,
   getTokenScan,
@@ -53,6 +54,16 @@ export function usePulse() {
     queryKey: ["pulse"],
     queryFn: getPulse,
     staleTime: 15_000,
+    retry: 1,
+  });
+}
+
+export function useBondingFeed() {
+  return useQuery({
+    queryKey: ["bonding-feed"],
+    queryFn: getBondingFeed,
+    staleTime: 30_000,
+    refetchInterval: 45_000, // the board is live — refresh as curves move
     retry: 1,
   });
 }

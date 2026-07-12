@@ -57,6 +57,35 @@ export interface TokenSummary {
   createdAt: string | null;
 }
 
+export interface BondingToken {
+  source: "noxa" | "virtuals";
+  address: string;
+  name: string;
+  symbol: string;
+  deployer: string | null;
+  logo: string | null;
+  progressPct: number | null;
+  graduated: boolean;
+  marketCapUsd: number | null;
+  volume24hUsd: number | null;
+  priceChange24hPct: number | null;
+  holderCount: number | null;
+  createdAt: string | null;
+  socials: { twitter?: string; telegram?: string; website?: string };
+  launchpadUrl: string;
+  scanAddress: string | null;
+}
+
+export interface BondingFeed {
+  tokens: BondingToken[];
+  sources: { noxa: "ok" | "error"; virtuals: "ok" | "error" };
+  cachedAt: number;
+}
+
+export function getBondingFeed() {
+  return apiGet<BondingFeed>("/v1/bonding/robinhood");
+}
+
 export interface DeployerSummary {
   address: string;
   totalLaunches: number | null;
