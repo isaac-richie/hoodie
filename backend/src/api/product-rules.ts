@@ -27,11 +27,16 @@ const CORE_MODULES = new Set([
   "source_verification",
 ]);
 
+// Scanning is free and unmetered: guests get no daily cap. The per-minute rate
+// limit stays as the only guard — it stops a single client from hammering the
+// backend (DoS) without ever charging a real user for using the core scanner.
+const UNLIMITED = Number.POSITIVE_INFINITY;
+
 const POLICIES: Record<ProductTier, TierPolicy> = {
-  guest: { dailyScans: 100, rpm: 30, modules: "all", scopes: ["scan:read"] },
-  free: { dailyScans: 10, rpm: 30, modules: "core", scopes: ["scan:read", "user:write"] },
-  pro: { dailyScans: 1000, rpm: 120, modules: "all", scopes: ["scan:read", "user:write", "alerts:write"] },
-  team: { dailyScans: 5000, rpm: 300, modules: "all", scopes: ["scan:read", "user:write", "alerts:write", "team:write"] },
+  guest: { dailyScans: UNLIMITED, rpm: 30, modules: "all", scopes: ["scan:read"] },
+  free: { dailyScans: UNLIMITED, rpm: 30, modules: "all", scopes: ["scan:read", "user:write"] },
+  pro: { dailyScans: UNLIMITED, rpm: 120, modules: "all", scopes: ["scan:read", "user:write", "alerts:write"] },
+  team: { dailyScans: UNLIMITED, rpm: 300, modules: "all", scopes: ["scan:read", "user:write", "alerts:write", "team:write"] },
 };
 
 export function getRequestTier(request: FastifyRequest): ProductTier {
@@ -55,24 +60,30 @@ export async function enforceScanQuota(request: FastifyRequest, reply: FastifyRe
   const tier = getRequestTier(request);
   const policy = POLICIES[tier];
   const identity = getIdentity(request);
-  const day = new Date().toISOString().slice(0, 10);
   const minute = Math.floor(Date.now() / 60_000);
-  const dailyKey = CACHE_KEYS.rateLimit(`scan:${tier}:${identity}:${day}`);
   const minuteKey = CACHE_KEYS.rateLimit(`scan-rpm:${tier}:${identity}:${minute}`);
+  const meteredDaily = Number.isFinite(policy.dailyScans);
 
-  let daily: number;
+  let daily = 0;
   let rpm: number;
   try {
-    [daily, rpm] = await Promise.all([increment(dailyKey, 86400), increment(minuteKey, 120)]);
+    if (meteredDaily) {
+      const day = new Date().toISOString().slice(0, 10);
+      const dailyKey = CACHE_KEYS.rateLimit(`scan:${tier}:${identity}:${day}`);
+      [daily, rpm] = await Promise.all([increment(dailyKey, 86400), increment(minuteKey, 120)]);
+    } else {
+      // Unmetered tier: only the per-minute abuse guard runs, no daily counter.
+      rpm = await increment(minuteKey, 120);
+    }
   } catch (err) {
-    // The quota counters live in Redis. If Redis is briefly unavailable, fail
+    // The rate counters live in Redis. If Redis is briefly unavailable, fail
     // OPEN (allow the scan) so an outage degrades gracefully instead of blocking
     // every scan — normal metering resumes as soon as Redis is back.
-    logger.warn({ err: (err as Error)?.message }, "scan quota check skipped — Redis unavailable");
+    logger.warn({ err: (err as Error)?.message }, "scan rate check skipped — Redis unavailable");
     return true;
   }
 
-  if (daily > policy.dailyScans) {
+  if (meteredDaily && daily > policy.dailyScans) {
     sendApiError(reply, 429, "SCAN_QUOTA_EXCEEDED", `${tier} tier scan quota exceeded`, {
       tier,
       limit: policy.dailyScans,

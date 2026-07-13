@@ -23,8 +23,9 @@ test("scopes expand by tier", () => {
   assert.ok(scopesForTier("team").includes("team:write"));
 });
 
-test("policy snapshot exposes daily quota configuration", () => {
+test("scanning is unmetered — no daily cap on any tier", () => {
   const policies = tierPolicySnapshot();
-  assert.equal(policies.free.dailyScans, 10);
+  assert.equal(policies.guest.dailyScans, Number.POSITIVE_INFINITY);
+  assert.equal(policies.free.dailyScans, Number.POSITIVE_INFINITY);
   assert.equal(policies.pro.modules, "all");
 });
