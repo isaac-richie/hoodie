@@ -66,7 +66,7 @@ export interface TokenSummary {
 }
 
 export interface BondingToken {
-  source: "noxa" | "virtuals";
+  source: "noxa" | "virtuals" | "pons";
   address: string;
   name: string;
   symbol: string;
@@ -87,7 +87,7 @@ export interface BondingToken {
 
 export interface BondingFeed {
   tokens: BondingToken[];
-  sources: { noxa: "ok" | "stale" | "error"; virtuals: "ok" | "stale" | "error" };
+  sources: { noxa: "ok" | "stale" | "error"; virtuals: "ok" | "stale" | "error"; pons: "ok" | "stale" | "error" };
   cachedAt: number;
 }
 

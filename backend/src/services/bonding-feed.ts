@@ -1,22 +1,32 @@
 /**
  * Launchpad Feed — early lifecycle tokens across Robinhood Chain launchpads.
  *
- * Aggregates the earliest useful state from two launchpads:
+ * Aggregates the earliest useful state from three launchpads:
  *
  *   - NOXA Fun  — memecoins launched directly into a locked Uniswap V3
  *                 position. These are already live and scannable; NOXA does
  *                 not expose a bonding-curve graduation phase to track.
  *   - Virtuals  — AI agents. Pre-graduation agents with status UNDERGRAD are
  *                 kept scan-locked until their token and liquidity exist.
+ *   - Pons      — a pump.fun-style monolithic factory + bonding curve. Its API
+ *                 is Cloudflare-gated and its contract is unverified with a
+ *                 custom event, so we read launches straight from chain: we
+ *                 tail the launchpad's trade event over a recent window and
+ *                 rank tokens by live volume. No fabricated graduation % — the
+ *                 exact ceiling isn't decodable from the unverified contract,
+ *                 so pons rows carry progressPct = null (UI shows "climbing").
  *
- * Both upstreams are undocumented public APIs, so every call is cached in Redis
- * (short TTL) and the whole feed degrades gracefully: if one source errors we
- * still return the other, and if both fail we return an empty list with a note
- * rather than throwing. We never hammer the upstreams from the browser — the
- * frontend only ever talks to us.
+ * The two HTTP upstreams are undocumented public APIs and pons is read on-chain;
+ * every path is cached in Redis (short TTL) and the whole feed degrades
+ * gracefully: if one source errors we still return the others, and if all fail
+ * we return an empty list with a note rather than throwing. We never hammer the
+ * upstreams from the browser — the frontend only ever talks to us.
  */
 import { redis } from "../config/redis.js";
 import { logger } from "../utils/logger.js";
+import { cachedRpc } from "./rpc-cache.js";
+import { erc20Abi } from "../utils/abis.js";
+import type { Address } from "viem";
 
 const NOXA_BASE = "https://awk00kk00gskkw0o8kc488kg.notoriouslywrong.com";
 const VIRTUALS_BASE = "https://api.virtuals.io/api/virtuals";
@@ -31,7 +41,24 @@ const UPSTREAM_TIMEOUT_MS = 15_000;
 // bonded archive when a launchpad is quiet for a few hours.
 const NEW_LAUNCH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-export type BondingSource = "noxa" | "virtuals";
+// ─── Pons (on-chain) ──────────────────────────────────────────────────────
+// Monolithic factory + bonding-curve contract; every pons token approves it to
+// trade and it emits one custom event per trade. Derived by tracing a known
+// pons token ($RIPSTIK) on-chain — see the launchpad decode notes.
+const PONS_LAUNCHPAD = "0x4e69084f83A635d6270E8f959864f94207031889" as Address;
+// keccak of the (unpublished) pons trade event. Not in any signature DB, so we
+// filter by this topic0 and decode the data words positionally.
+const PONS_TRADE_TOPIC = "0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f";
+// Robinhood Chain WETH — the quote asset on the pons curve.
+const PONS_WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73";
+// Robinhood Chain runs ~0.1s blocks (~862k/day), so a full-day log scan is
+// infeasible per request. We tail a recent window and rank by live volume —
+// "what's hot on pons right now". ~36k blocks ≈ 1h.
+const PONS_WINDOW_BLOCKS = 36_000n;
+const PONS_CHUNK_BLOCKS = 9_000n;      // stay under Alchemy's 10k getLogs cap
+const PONS_MAX_TOKENS = 40;            // cap metadata reads per refresh
+
+export type BondingSource = "noxa" | "virtuals" | "pons";
 
 export interface BondingToken {
   source: BondingSource;
@@ -53,9 +80,11 @@ export interface BondingToken {
   scanAddress: string | null;   // address to run a Hood scan on (null pre-graduation for Virtuals)
 }
 
+type SourceStatus = "ok" | "stale" | "error";
+
 export interface BondingFeed {
   tokens: BondingToken[];
-  sources: { noxa: "ok" | "stale" | "error"; virtuals: "ok" | "stale" | "error" };
+  sources: { noxa: SourceStatus; virtuals: SourceStatus; pons: SourceStatus };
   cachedAt: number;
 }
 
@@ -183,6 +212,145 @@ async function fetchVirtuals(): Promise<BondingToken[]> {
     .filter((t): t is BondingToken => t !== null);
 }
 
+/**
+ * Pons — read launches straight from the chain.
+ *
+ * The pons launchpad (a monolithic factory + bonding curve) emits one custom
+ * trade event per interaction. We tail that event over a recent window and
+ * decode each log's data words positionally (the contract is unverified, so
+ * there is no ABI):
+ *
+ *   word[0], word[1] = amountIn / amountOut (they SWAP by trade direction:
+ *                      a buy is eth-in/tokens-out, a sell is tokens-in/eth-out)
+ *   word[2] = protocol fee (≈1% of the eth side)   word[3] = token address
+ *
+ * Token amounts (millions × 1e18 ≈ 1e24) always dwarf eth amounts (~1e16), so
+ * the eth side is min(word0,word1) and the token side is max — cross-checked
+ * against the fee, which is ≈1% of the eth side regardless of direction.
+ *
+ * We aggregate per token: total WETH volume in the window, trade count, and the
+ * last spot price (ethWei/tokWei). Tokens are ranked by live volume — the honest
+ * "what's hot on pons right now". We deliberately do NOT invent a graduation %:
+ * the exact ceiling isn't recoverable from the unverified contract, so
+ * progressPct stays null and the UI renders the indeterminate "climbing" state.
+ */
+interface PonsAgg {
+  volumeWei: bigint;
+  trades: number;
+  lastPriceEth: number | null;
+  lastBlock: bigint;
+}
+
+async function fetchPons(ethUsd: number | null): Promise<BondingToken[]> {
+  const head = await cachedRpc.getBlockNumber();
+  const from = head > PONS_WINDOW_BLOCKS ? head - PONS_WINDOW_BLOCKS : 0n;
+
+  // Raw eth_getLogs by topic0 (no typed ABI available), chunked under the
+  // provider's 10k-block cap. Best-effort: a failed chunk shouldn't sink pons.
+  const logs: any[] = [];
+  for (let start = from; start <= head; start += PONS_CHUNK_BLOCKS + 1n) {
+    const end = start + PONS_CHUNK_BLOCKS > head ? head : start + PONS_CHUNK_BLOCKS;
+    try {
+      const chunk = (await cachedRpc.raw.request({
+        method: "eth_getLogs",
+        params: [{
+          address: PONS_LAUNCHPAD,
+          topics: [PONS_TRADE_TOPIC],
+          fromBlock: `0x${start.toString(16)}`,
+          toBlock: `0x${end.toString(16)}`,
+        }],
+      } as any)) as any[];
+      if (Array.isArray(chunk)) logs.push(...chunk);
+    } catch (err) {
+      logger.warn({ err: (err as Error)?.message, start: start.toString() }, "pons: getLogs chunk failed");
+    }
+  }
+
+  const agg = new Map<string, PonsAgg>();
+  for (const log of logs) {
+    const data: string = log.data?.startsWith("0x") ? log.data.slice(2) : log.data;
+    if (!data || data.length < 4 * 64) continue;
+    const word = (i: number) => data.slice(i * 64, (i + 1) * 64);
+    const token = ("0x" + word(3).slice(24)).toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/.test(token) || token === "0x" + "0".repeat(40)) continue;
+
+    const w0 = BigInt("0x" + word(0));
+    const w1 = BigInt("0x" + word(1));
+    const fee = BigInt("0x" + word(2));
+    // eth side = the smaller of the two amounts (token amounts dwarf eth amounts)
+    const ethWei = w0 < w1 ? w0 : w1;
+    const tokWei = w0 < w1 ? w1 : w0;
+    if (ethWei === 0n || tokWei === 0n) continue;
+    // Sanity guard: fee should be ~1% of the eth side. If it's wildly off, the
+    // min/max heuristic mis-split this log (e.g. a near-parity trade) — skip it
+    // rather than pollute volume. Allow a generous band (0.1%–10%).
+    if (fee > 0n && (fee * 1000n < ethWei || fee * 10n > ethWei)) continue;
+    const blockNum = BigInt(log.blockNumber ?? "0x0");
+
+    const prev = agg.get(token) ?? { volumeWei: 0n, trades: 0, lastPriceEth: null, lastBlock: 0n };
+    prev.volumeWei += ethWei;
+    prev.trades += 1;
+    if (blockNum >= prev.lastBlock) {
+      // price of one whole token in ETH: (ethWei/1e18)/(tokWei/1e18) = ethWei/tokWei
+      prev.lastPriceEth = Number(ethWei) / Number(tokWei);
+      prev.lastBlock = blockNum;
+    }
+    agg.set(token, prev);
+  }
+
+  // Rank by live volume, cap the metadata fan-out.
+  const ranked = [...agg.entries()]
+    .sort((a, b) => (b[1].volumeWei > a[1].volumeWei ? 1 : b[1].volumeWei < a[1].volumeWei ? -1 : 0))
+    .slice(0, PONS_MAX_TOKENS);
+
+  const rows = await Promise.all(ranked.map(async ([token, a]): Promise<BondingToken | null> => {
+    try {
+      const [name, symbol, totalSupply] = await Promise.all([
+        readErc20(token, "name"),
+        readErc20(token, "symbol"),
+        readErc20(token, "totalSupply"),
+      ]);
+      const priceUsd = a.lastPriceEth != null && ethUsd != null ? a.lastPriceEth * ethUsd : null;
+      const supply = typeof totalSupply === "bigint" ? Number(totalSupply) / 1e18 : null;
+      const marketCapUsd = priceUsd != null && supply != null ? priceUsd * supply : null;
+      const volumeUsd = ethUsd != null ? (Number(a.volumeWei) / 1e18) * ethUsd : null;
+      return {
+        source: "pons",
+        address: token,
+        name: typeof name === "string" ? name : "",
+        symbol: typeof symbol === "string" ? symbol : "",
+        deployer: null,               // creation tx not indexed on this chain's explorer
+        logo: null,                   // pons metadata lives behind their Cloudflare-gated API
+        progressPct: null,            // no decodable graduation ceiling — honest "climbing"
+        graduated: false,
+        marketCapUsd,
+        mcapInVirtual: null,
+        volume24hUsd: volumeUsd,      // volume over the live window (see PONS_WINDOW_BLOCKS)
+        priceChange24hPct: null,
+        holderCount: null,
+        createdAt: null,
+        socials: {},
+        launchpadUrl: `https://pons.family/token/${token}`,
+        scanAddress: token,           // real ERC-20 on 4663 — scannable now
+      };
+    } catch (err) {
+      logger.warn({ err: (err as Error)?.message, token }, "pons: token metadata read failed");
+      return null;
+    }
+  }));
+
+  return rows.filter((t): t is BondingToken => t !== null && (t.name !== "" || t.symbol !== ""));
+}
+
+async function readErc20(address: string, fn: "name" | "symbol" | "totalSupply"): Promise<unknown> {
+  return cachedRpc.readContract({
+    address: address as Address,
+    abi: erc20Abi as readonly unknown[],
+    functionName: fn,
+    ttlMs: 6 * 60 * 60 * 1000, // name/symbol/supply are immutable — cache long
+  });
+}
+
 async function getEthUsd(): Promise<number | null> {
   try {
     const cached = await redis.get("price:eth-usd");
@@ -202,7 +370,7 @@ async function getEthUsd(): Promise<number | null> {
 }
 
 export async function getBondingFeed(): Promise<BondingFeed> {
-  const cacheKey = "bonding:robinhood:v3";
+  const cacheKey = "bonding:robinhood:v4";
   const virtualsLastGoodKey = "bonding:robinhood:virtuals:last-good";
   try {
     const cached = await redis.get(cacheKey);
@@ -210,10 +378,14 @@ export async function getBondingFeed(): Promise<BondingFeed> {
   } catch { /* cache miss */ }
 
   const ethUsd = await getEthUsd();
-  const [noxaResult, virtualsResult] = await Promise.allSettled([fetchNoxa(ethUsd), fetchVirtuals()]);
+  const [noxaResult, virtualsResult, ponsResult] = await Promise.allSettled([
+    fetchNoxa(ethUsd),
+    fetchVirtuals(),
+    fetchPons(ethUsd),
+  ]);
 
   const tokens: BondingToken[] = [];
-  const sources: BondingFeed["sources"] = { noxa: "ok", virtuals: "ok" };
+  const sources: BondingFeed["sources"] = { noxa: "ok", virtuals: "ok", pons: "ok" };
 
   if (noxaResult.status === "fulfilled") tokens.push(...noxaResult.value);
   else {
@@ -247,8 +419,16 @@ export async function getBondingFeed(): Promise<BondingFeed> {
     }
   }
 
-  // Both sources now carry progressPct. Sort by it so the UI's tier filters
-  // and interleaving see tokens ordered from closest-to-graduation downward.
+  if (ponsResult.status === "fulfilled") tokens.push(...ponsResult.value);
+  else {
+    sources.pons = "error";
+    logger.warn({ err: ponsResult.reason?.message }, "bonding feed: Pons source failed");
+  }
+
+  // NOXA and Virtuals carry a graduation %, so they sort by proximity to bonding.
+  // Pons has no decodable ceiling (progressPct null) — those rows come pre-ranked
+  // by live volume from fetchPons, so a stable sort leaves that order intact
+  // while the %-bearing sources sort ahead of them.
   tokens.sort((a, b) => (b.progressPct ?? -1) - (a.progressPct ?? -1));
 
   const feed: BondingFeed = { tokens, sources, cachedAt: Date.now() };

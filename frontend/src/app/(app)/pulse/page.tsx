@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useBondingFeed } from "@/lib/queries";
 import type { BondingToken } from "@/lib/api";
 
-type SourceFilter = "all" | "noxa" | "virtuals";
+type SourceFilter = "all" | "noxa" | "virtuals" | "pons";
 type ProgressTier = "all" | "almost" | "mid" | "climbing" | "new";
 const PAGE_SIZE = 12;
 
@@ -25,6 +25,13 @@ const SOURCE_META: Record<
     ring: "#8B7CF6",
     glow: "rgba(139,124,246,0.16)",
     tint: "linear-gradient(180deg, rgba(139,124,246,0.10) 0%, rgba(6,20,11,0) 60%)",
+    url: (t) => t.launchpadUrl,
+  },
+  pons: {
+    label: "Pons",
+    ring: "#38BDF8",
+    glow: "rgba(56,189,248,0.16)",
+    tint: "linear-gradient(180deg, rgba(56,189,248,0.10) 0%, rgba(6,20,11,0) 60%)",
     url: (t) => t.launchpadUrl,
   },
 };
@@ -54,22 +61,27 @@ export default function PulsePage() {
     const bySource = source === "all" ? live : live.filter((t) => t.source === source);
     const byTier = bySource.filter((t) => matchesTier(t, progressTier));
     if (source !== "all") return byTier;
-    // Interleave both sources so neither buries the other in the combined view.
-    const n = byTier.filter((t) => t.source === "noxa");
-    const v = byTier.filter((t) => t.source === "virtuals");
+    // Round-robin all three sources so none buries the others in the combined view.
+    const lanes = [
+      byTier.filter((t) => t.source === "noxa"),
+      byTier.filter((t) => t.source === "virtuals"),
+      byTier.filter((t) => t.source === "pons"),
+    ];
     const merged: BondingToken[] = [];
-    for (let i = 0; i < Math.max(n.length, v.length); i++) {
-      if (i < n.length) merged.push(n[i]);
-      if (i < v.length) merged.push(v[i]);
+    const longest = Math.max(...lanes.map((l) => l.length), 0);
+    for (let i = 0; i < longest; i++) {
+      for (const lane of lanes) if (i < lane.length) merged.push(lane[i]);
     }
     return merged;
   }, [data, source, progressTier]);
 
   const allLive = (data?.tokens ?? []).filter((t) => !t.graduated);
   const noxaCount = allLive.filter((t) => t.source === "noxa").length;
-  const virtCount  = allLive.filter((t) => t.source === "virtuals").length;
+  const virtCount = allLive.filter((t) => t.source === "virtuals").length;
+  const ponsCount = allLive.filter((t) => t.source === "pons").length;
   const noxaDown     = data?.sources.noxa     === "error";
   const virtualsDown = data?.sources.virtuals === "error";
+  const ponsDown     = data?.sources.pons     === "error";
   const noxaStale     = data?.sources.noxa     === "stale";
   const virtualsStale = data?.sources.virtuals === "stale";
   const pageCount  = Math.max(1, Math.ceil(tokens.length / PAGE_SIZE));
@@ -94,15 +106,16 @@ export default function PulsePage() {
           <span style={{ fontSize: 10, fontWeight: 700, color: "#D4A937", border: "1px solid #6b5111", background: "rgba(212,169,55,0.08)", padding: "3px 9px", borderRadius: 999, letterSpacing: "0.08em", textTransform: "uppercase" }}>Premium</span>
         </div>
         <div style={{ fontSize: 13, color: "#8FB39D", marginTop: 8, lineHeight: "20px", maxWidth: 680 }}>
-          Catch Virtuals agents and NOXA tokens before they graduate. Filter by how close each one is to bonding — then scan the ones you like.
+          Catch tokens across NOXA, Virtuals and Pons before they graduate. Filter by how close each one is to bonding — then scan the ones you like.
         </div>
       </div>
 
       {/* Row 1: source pills */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-        <SourcePill active={source === "all"}      onClick={() => changeSource("all")}      label="All launchpads" count={noxaCount + virtCount} />
+        <SourcePill active={source === "all"}      onClick={() => changeSource("all")}      label="All launchpads" count={noxaCount + virtCount + ponsCount} />
         <SourcePill active={source === "noxa"}     onClick={() => changeSource("noxa")}     label="NOXA"     count={noxaCount} color="#00C805" />
         <SourcePill active={source === "virtuals"} onClick={() => changeSource("virtuals")} label="Virtuals" count={virtCount}  color="#8B7CF6" />
+        <SourcePill active={source === "pons"}     onClick={() => changeSource("pons")}     label="Pons"     count={ponsCount}  color="#38BDF8" />
         <span style={{ marginLeft: "auto", fontSize: 11, color: "#496552", fontFamily: "var(--font-mono, monospace)" }}>
           {tokens.length} tokens · refreshes 45s
         </span>
@@ -116,9 +129,14 @@ export default function PulsePage() {
         ))}
       </div>
 
-      {(noxaDown || virtualsDown) && (
+      {(noxaDown || virtualsDown || ponsDown) && (
         <div style={{ background: "rgba(255,176,32,0.08)", border: "1px solid #6b4d11", padding: "10px 14px", fontSize: 12, color: "#FFB020", marginBottom: 14, borderRadius: 6 }}>
-          {noxaDown && virtualsDown ? "Both launchpad feeds are temporarily unavailable." : `${noxaDown ? "NOXA" : "Virtuals"} feed is temporarily unavailable — showing the other source.`}
+          {(() => {
+            const down = [noxaDown && "NOXA", virtualsDown && "Virtuals", ponsDown && "Pons"].filter(Boolean);
+            return down.length >= 3
+              ? "All launchpad feeds are temporarily unavailable."
+              : `${down.join(" and ")} ${down.length > 1 ? "feeds are" : "feed is"} temporarily unavailable — showing the other sources.`;
+          })()}
         </div>
       )}
       {(noxaStale || virtualsStale) && (
@@ -263,14 +281,14 @@ function PremiumCard({ token }: { token: BondingToken }) {
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 7 }}>
           <div>
             <div style={{ fontSize: 9, color: "#496552", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 2 }}>
-              {token.source === "noxa" ? "bonding progress" : "graduation rank"}
+              {token.source === "noxa" ? "bonding progress" : token.source === "pons" ? "live on curve" : "graduation rank"}
             </div>
             <span style={{
               fontSize: 26, fontWeight: 900, lineHeight: 1,
               fontFamily: "var(--font-mono, monospace)", letterSpacing: "-0.04em",
               color: "#E6FBEA",
             }}>
-              {pct != null ? `${Math.round(pct)}%` : token.source === "noxa" ? "live" : "—"}
+              {pct != null ? `${Math.round(pct)}%` : token.source === "virtuals" ? "—" : "live"}
             </span>
           </div>
           <span style={{ fontSize: 10, color: "#496552", fontFamily: "var(--font-mono, monospace)", paddingBottom: 2 }}>
@@ -278,7 +296,9 @@ function PremiumCard({ token }: { token: BondingToken }) {
               ? `${((pct / 100) * 4.2).toFixed(2)} / 4.2 ETH`
               : token.mcapInVirtual != null
                 ? `${fmtCompact(token.mcapInVirtual)} VIRT`
-                : ""}
+                : token.source === "pons"
+                  ? "trading now"
+                  : ""}
           </span>
         </div>
         <ProgressBar pct={pct} source={token.source} ring={meta.ring} />
@@ -287,7 +307,7 @@ function PremiumCard({ token }: { token: BondingToken }) {
       {/* metrics row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px 14px", fontSize: 11, position: "relative", zIndex: 1 }}>
         <Stat label="Mcap" value={mcapText(token)} />
-        <Stat label="Vol 24h" value={fmtUsd(token.volume24hUsd)} />
+        <Stat label={token.source === "pons" ? "Vol 1h" : "Vol 24h"} value={fmtUsd(token.volume24hUsd)} />
         <Stat label="24h" value={fmtPct(changeVal)} color={changeColor(changeVal)} />
       </div>
 
