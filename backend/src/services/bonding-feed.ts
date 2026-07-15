@@ -58,6 +58,12 @@ const PONS_WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73";
 const PONS_WINDOW_BLOCKS = 90_000n;
 const PONS_CHUNK_BLOCKS = 9_000n;      // stay under Alchemy's 10k getLogs cap
 const PONS_MAX_TOKENS = 40;            // cap metadata reads per refresh
+// Confirmed history never changes, so cache every chunk except the live head.
+// Chunks whose end block is older than this margin are immutable and cached in
+// Redis for a week — a refresh then only re-fetches the one live head chunk
+// instead of the whole window (≈10 getLogs → ≈1), which keeps RPC spend low.
+const PONS_CONFIRMED_BLOCKS = 600n;    // ~60s at 0.1s blocks — beyond any reorg
+const PONS_CHUNK_TTL_S = 7 * 24 * 60 * 60;
 // Graduation target in WETH. Calibrated from on-chain net-raised: active tokens
 // cluster just under this and the sister Robinhood launchpad (NOXA) graduates at
 // exactly 4.2 WETH. The EXACT ceiling isn't published, but progress is monotonic
@@ -258,15 +264,31 @@ interface PonsAgg {
   lastBlock: bigint;
 }
 
+// One trade log, slimmed to just the fields we aggregate on — this is what we
+// cache in Redis (raw logs carry a dozen unused fields).
+interface PonsLog { data: string; blockNumber: string }
+
 async function fetchPons(ethUsd: number | null): Promise<BondingToken[]> {
   const head = await cachedRpc.getBlockNumber();
-  const from = head > PONS_WINDOW_BLOCKS ? head - PONS_WINDOW_BLOCKS : 0n;
+  const rawFrom = head > PONS_WINDOW_BLOCKS ? head - PONS_WINDOW_BLOCKS : 0n;
+  // Align the window start to the chunk grid so each historical chunk has a
+  // stable [start,end] — and therefore a stable Redis key — across refreshes.
+  const from = (rawFrom / PONS_CHUNK_BLOCKS) * PONS_CHUNK_BLOCKS;
+  const confirmedBefore = head > PONS_CONFIRMED_BLOCKS ? head - PONS_CONFIRMED_BLOCKS : 0n;
 
-  // Raw eth_getLogs by topic0 (no typed ABI available), chunked under the
-  // provider's 10k-block cap. Best-effort: a failed chunk shouldn't sink pons.
-  const logs: any[] = [];
-  for (let start = from; start <= head; start += PONS_CHUNK_BLOCKS + 1n) {
-    const end = start + PONS_CHUNK_BLOCKS > head ? head : start + PONS_CHUNK_BLOCKS;
+  const logs: PonsLog[] = [];
+  for (let start = from; start <= head; start += PONS_CHUNK_BLOCKS) {
+    const end = start + PONS_CHUNK_BLOCKS - 1n > head ? head : start + PONS_CHUNK_BLOCKS - 1n;
+    const immutable = end < confirmedBefore;   // fully-confirmed, can't change
+    const cacheKey = `pons:logs:${start}:${end}`;
+
+    if (immutable) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) { logs.push(...(JSON.parse(cached) as PonsLog[])); continue; }
+      } catch { /* cache miss — fall through to fetch */ }
+    }
+
     try {
       const chunk = (await cachedRpc.raw.request({
         method: "eth_getLogs",
@@ -277,7 +299,14 @@ async function fetchPons(ethUsd: number | null): Promise<BondingToken[]> {
           toBlock: `0x${end.toString(16)}`,
         }],
       } as any)) as any[];
-      if (Array.isArray(chunk)) logs.push(...chunk);
+      if (!Array.isArray(chunk)) continue;
+      const slim: PonsLog[] = chunk.map((l) => ({ data: l.data, blockNumber: l.blockNumber }));
+      logs.push(...slim);
+      // Only historical chunks are safe to persist; the live head chunk keeps
+      // moving, so we always re-fetch it.
+      if (immutable) {
+        try { await redis.setex(cacheKey, PONS_CHUNK_TTL_S, JSON.stringify(slim)); } catch { /* best effort */ }
+      }
     } catch (err) {
       logger.warn({ err: (err as Error)?.message, start: start.toString() }, "pons: getLogs chunk failed");
     }
