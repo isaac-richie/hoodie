@@ -281,7 +281,7 @@ function PremiumCard({ token }: { token: BondingToken }) {
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 7 }}>
           <div>
             <div style={{ fontSize: 9, color: "#496552", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 2 }}>
-              {token.source === "noxa" ? "bonding progress" : token.source === "pons" ? "live on curve" : "graduation rank"}
+              {token.source === "virtuals" ? "graduation rank" : token.source === "pons" && pct == null ? "live on curve" : "bonding progress"}
             </div>
             <span style={{
               fontSize: 26, fontWeight: 900, lineHeight: 1,
@@ -292,7 +292,7 @@ function PremiumCard({ token }: { token: BondingToken }) {
             </span>
           </div>
           <span style={{ fontSize: 10, color: "#496552", fontFamily: "var(--font-mono, monospace)", paddingBottom: 2 }}>
-            {token.source === "noxa" && pct != null
+            {(token.source === "noxa" || token.source === "pons") && pct != null
               ? `${((pct / 100) * 4.2).toFixed(2)} / 4.2 ETH`
               : token.mcapInVirtual != null
                 ? `${fmtCompact(token.mcapInVirtual)} VIRT`

@@ -52,11 +52,23 @@ const PONS_TRADE_TOPIC = "0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca1
 // Robinhood Chain WETH — the quote asset on the pons curve.
 const PONS_WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73";
 // Robinhood Chain runs ~0.1s blocks (~862k/day), so a full-day log scan is
-// infeasible per request. We tail a recent window and rank by live volume —
-// "what's hot on pons right now". ~36k blocks ≈ 1h.
-const PONS_WINDOW_BLOCKS = 36_000n;
+// infeasible per request. We tail a recent window: ~90k blocks ≈ 2.5h, which
+// captures the full life of virtually every active pons token (they bond fast —
+// observed tokens raise ~4 ETH in under an hour).
+const PONS_WINDOW_BLOCKS = 90_000n;
 const PONS_CHUNK_BLOCKS = 9_000n;      // stay under Alchemy's 10k getLogs cap
 const PONS_MAX_TOKENS = 40;            // cap metadata reads per refresh
+// Graduation target in WETH. Calibrated from on-chain net-raised: active tokens
+// cluster just under this and the sister Robinhood launchpad (NOXA) graduates at
+// exactly 4.2 WETH. The EXACT ceiling isn't published, but progress is monotonic
+// in net-raised, so the "almost bonded" ranking is correct regardless — only the
+// absolute % label carries this constant's uncertainty. Tune if pons confirms.
+const PONS_GRADUATION_ETH = 4.2;
+// Only trust a computed % when we captured the token's first trade inside the
+// window (otherwise the net-raised sum silently undercounts). If a token's
+// earliest in-window event sits within this margin of the window start, it may
+// predate our scan — we fall back to the honest indeterminate "climbing" state.
+const PONS_BIRTH_MARGIN_BLOCKS = 2_000n;
 
 export type BondingSource = "noxa" | "virtuals" | "pons";
 
@@ -220,23 +232,28 @@ async function fetchVirtuals(): Promise<BondingToken[]> {
  * decode each log's data words positionally (the contract is unverified, so
  * there is no ABI):
  *
- *   word[0], word[1] = amountIn / amountOut (they SWAP by trade direction:
- *                      a buy is eth-in/tokens-out, a sell is tokens-in/eth-out)
- *   word[2] = protocol fee (≈1% of the eth side)   word[3] = token address
+ *   word[0], word[1] = amountIn / amountOut   word[2] = fee (≈1% of eth side)
+ *   word[3] = token address
  *
- * Token amounts (millions × 1e18 ≈ 1e24) always dwarf eth amounts (~1e16), so
- * the eth side is min(word0,word1) and the token side is max — cross-checked
- * against the fee, which is ≈1% of the eth side regardless of direction.
+ * Direction comes from the amounts themselves, not a flag (word5 is noisy across
+ * tokens): token amounts (millions × 1e18 ≈ 1e24) always dwarf eth amounts
+ * (~1e16), so the eth side is min(word0,word1). A BUY sends eth in first, so
+ * word0 < word1; a SELL sends tokens in first, so word0 > word1. That gives us
+ * both the eth/token split and buy-vs-sell from one comparison.
  *
- * We aggregate per token: total WETH volume in the window, trade count, and the
- * last spot price (ethWei/tokWei). Tokens are ranked by live volume — the honest
- * "what's hot on pons right now". We deliberately do NOT invent a graduation %:
- * the exact ceiling isn't recoverable from the unverified contract, so
- * progressPct stays null and the UI renders the indeterminate "climbing" state.
+ * Per token we track:
+ *   - volume: gross WETH traded (buys + sells) — the "heat" ranking
+ *   - netRaisedEth: Σ(buy eth) − Σ(sell eth) — WETH accumulated on the curve,
+ *     which maps monotonically to graduation progress (÷ PONS_GRADUATION_ETH)
+ *   - firstBlock: to gate the % — we only trust progress when we captured the
+ *     token's first trade in-window (else the net-raised sum undercounts)
+ *   - lastPriceEth: for market cap
  */
 interface PonsAgg {
   volumeWei: bigint;
+  netRaisedWei: bigint;
   trades: number;
+  firstBlock: bigint;
   lastPriceEth: number | null;
   lastBlock: bigint;
 }
@@ -277,19 +294,24 @@ async function fetchPons(ethUsd: number | null): Promise<BondingToken[]> {
     const w0 = BigInt("0x" + word(0));
     const w1 = BigInt("0x" + word(1));
     const fee = BigInt("0x" + word(2));
-    // eth side = the smaller of the two amounts (token amounts dwarf eth amounts)
-    const ethWei = w0 < w1 ? w0 : w1;
-    const tokWei = w0 < w1 ? w1 : w0;
+    // eth side = the smaller amount (token amounts dwarf eth amounts); a BUY
+    // sends eth in first (word0 < word1), a SELL sends tokens in first.
+    const isBuy = w0 < w1;
+    const ethWei = isBuy ? w0 : w1;
+    const tokWei = isBuy ? w1 : w0;
     if (ethWei === 0n || tokWei === 0n) continue;
-    // Sanity guard: fee should be ~1% of the eth side. If it's wildly off, the
-    // min/max heuristic mis-split this log (e.g. a near-parity trade) — skip it
-    // rather than pollute volume. Allow a generous band (0.1%–10%).
+    // Sanity guard: fee is ~1% of the eth side. If it's wildly off, this log
+    // was mis-split (e.g. a near-parity trade) — skip rather than pollute sums.
     if (fee > 0n && (fee * 1000n < ethWei || fee * 10n > ethWei)) continue;
     const blockNum = BigInt(log.blockNumber ?? "0x0");
 
-    const prev = agg.get(token) ?? { volumeWei: 0n, trades: 0, lastPriceEth: null, lastBlock: 0n };
-    prev.volumeWei += ethWei;
+    const prev = agg.get(token) ?? {
+      volumeWei: 0n, netRaisedWei: 0n, trades: 0, firstBlock: blockNum, lastPriceEth: null, lastBlock: 0n,
+    };
+    prev.volumeWei += ethWei;                                   // gross (both sides)
+    prev.netRaisedWei += isBuy ? ethWei : -ethWei;              // buys add, sells subtract
     prev.trades += 1;
+    if (blockNum < prev.firstBlock) prev.firstBlock = blockNum;
     if (blockNum >= prev.lastBlock) {
       // price of one whole token in ETH: (ethWei/1e18)/(tokWei/1e18) = ethWei/tokWei
       prev.lastPriceEth = Number(ethWei) / Number(tokWei);
@@ -298,6 +320,7 @@ async function fetchPons(ethUsd: number | null): Promise<BondingToken[]> {
     agg.set(token, prev);
   }
 
+  const windowStart = from;
   // Rank by live volume, cap the metadata fan-out.
   const ranked = [...agg.entries()]
     .sort((a, b) => (b[1].volumeWei > a[1].volumeWei ? 1 : b[1].volumeWei < a[1].volumeWei ? -1 : 0))
@@ -314,6 +337,16 @@ async function fetchPons(ethUsd: number | null): Promise<BondingToken[]> {
       const supply = typeof totalSupply === "bigint" ? Number(totalSupply) / 1e18 : null;
       const marketCapUsd = priceUsd != null && supply != null ? priceUsd * supply : null;
       const volumeUsd = ethUsd != null ? (Number(a.volumeWei) / 1e18) * ethUsd : null;
+
+      // Bonding progress = net WETH raised / graduation target. Only trust it
+      // when we captured the token's first trade in-window (else the sum
+      // undercounts) — otherwise fall back to the honest "climbing" state.
+      const caughtBirth = a.firstBlock > windowStart + PONS_BIRTH_MARGIN_BLOCKS;
+      const netRaisedEth = Number(a.netRaisedWei) / 1e18;
+      const progressPct = caughtBirth && netRaisedEth > 0
+        ? Math.min(100, Math.max(0, Math.round((netRaisedEth / PONS_GRADUATION_ETH) * 100)))
+        : null;
+
       return {
         source: "pons",
         address: token,
@@ -321,7 +354,7 @@ async function fetchPons(ethUsd: number | null): Promise<BondingToken[]> {
         symbol: typeof symbol === "string" ? symbol : "",
         deployer: null,               // creation tx not indexed on this chain's explorer
         logo: null,                   // pons metadata lives behind their Cloudflare-gated API
-        progressPct: null,            // no decodable graduation ceiling — honest "climbing"
+        progressPct,                  // net-raised / 4.2 ETH, gated on capturing birth
         graduated: false,
         marketCapUsd,
         mcapInVirtual: null,
